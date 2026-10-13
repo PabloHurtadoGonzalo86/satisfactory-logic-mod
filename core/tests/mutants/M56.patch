@@ -1,0 +1,13 @@
+# kills: T13
+# M56: La guarda de asentamiento retiene un actuador un paso de más
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -86,7 +86,7 @@
+     if (!bounds_[i].has_value()) continue;
+     const std::size_t slot = graph_.slotOf(actuators_[i].id);
+     if (slot == detail::kNoSlot || marks[slot] == 0) continue;
+-    actuators_[i].hold = std::max(actuators_[i].hold, *bounds_[i]);
++    actuators_[i].hold = std::max(actuators_[i].hold, *bounds_[i] + 1U);
+   }
+ }
+ 

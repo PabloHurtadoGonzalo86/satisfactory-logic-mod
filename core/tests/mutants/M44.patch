@@ -1,0 +1,13 @@
+# kills: T11, T2
+# M44: Un add() que halló agotado el espacio de ids da RetiredId al aplicar en vez de LimitExceeded
+--- a/core/src/netlist.cpp
++++ b/core/src/netlist.cpp
+@@ -144,7 +144,7 @@
+       case EditOp::Add:
+       case EditOp::AddWithId: {
+         const ComponentId id = op.id;
+-        if (op.kind == EditOp::Add && id == 0) return Status::LimitExceeded;  // add() found the id space exhausted
++        if (op.kind == EditOp::Add && id == 0) return Status::RetiredId;  // add() found the id space exhausted
+         if (comps.contains(id)) return Status::DuplicateId;
+         if (id < base || retiredHere.contains(id)) return Status::RetiredId;
+         if (id >= internal::kIdSentinel) return Status::LimitExceeded;

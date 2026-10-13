@@ -1,0 +1,13 @@
+# kills: T5, T8
+# M30: El byte alto de la fase del Clock se guarda desplazado 9 bits (solo se ve con P > 256)
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -15,7 +15,7 @@
+ 
+ inline void storeU16(std::uint8_t* p, unsigned v) noexcept {
+   p[0] = static_cast<std::uint8_t>(v & 0xFFu);
+-  p[1] = static_cast<std::uint8_t>((v >> 8) & 0xFFu);
++  p[1] = static_cast<std::uint8_t>((v >> 9) & 0xFFu);
+ }
+ 
+ }  // namespace

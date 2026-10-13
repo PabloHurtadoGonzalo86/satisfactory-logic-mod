@@ -1,0 +1,12 @@
+# kills: T13
+# M85: La huella de un componente no incluye sus bytes de estado (un replace con el mismo Spec y otro seed no cambia el cono)
+--- a/core/src/host/cone_graph.cpp
++++ b/core/src/host/cone_graph.cpp
+@@ -100,7 +100,6 @@
+     h.u16(spec.p2);
+     offset += kSimulatorRecordBytes;
+     const std::size_t size = internal::stateSize(spec);
+-    for (std::size_t k = 0; k < size && offset + k < blob.size(); ++k) h.byte(blob[offset + k]);
+     offset += size;
+     for (std::uint8_t j = 0; j < table.inputs[slot]; ++j) h.u64(drivers[nets.pinNet[table.pin(slot, j)]].value());
+     signatures.push_back(ComponentSignature{comps[slot].first, h.value()});

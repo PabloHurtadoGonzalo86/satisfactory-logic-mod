@@ -1,0 +1,13 @@
+# kills: T5
+# M25: validate acepta un Gate de aridad 0
+--- a/core/src/internal/spec_rules.cpp
++++ b/core/src/internal/spec_rules.cpp
+@@ -48,7 +48,7 @@
+     case Kind::Toggle:
+       return (spec.p0 == 0 && spec.p1 == 0 && spec.p2 == 0) ? Status::Ok : Status::BadSpec;
+     case Kind::Gate:
+-      if (spec.p0 > static_cast<std::uint16_t>(GateOp::Xor) || spec.p1 > 1 || spec.p2 == 0) return Status::BadSpec;
++      if (spec.p0 > static_cast<std::uint16_t>(GateOp::Xor) || spec.p1 > 1) return Status::BadSpec;
+       return spec.p2 > limits.maxArity ? Status::LimitExceeded : Status::Ok;
+     case Kind::Delay:
+       if (spec.p1 != 0 || spec.p2 != 0 || spec.p0 == 0) return Status::BadSpec;

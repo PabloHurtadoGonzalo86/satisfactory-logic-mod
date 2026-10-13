@@ -1,0 +1,13 @@
+# kills: T5
+# M06: Compare usa < en lugar de <=
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -221,7 +221,7 @@
+         const unsigned b = nets[pinNet[pins + 1]];
+         unsigned result = 0;
+         if (static_cast<CompareMode>(slot.mode) == CompareMode::Compare) {
+-          result = b <= a ? a : 0;
++          result = b < a ? a : 0;
+         } else {
+           result = a > b ? a - b : 0;
+         }

@@ -1,0 +1,13 @@
+# kills: T5
+# M21: Subtract no recorta a 0 (el resultado da la vuelta como entero sin signo)
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -223,7 +223,7 @@
+         if (static_cast<CompareMode>(slot.mode) == CompareMode::Compare) {
+           result = b <= a ? a : 0;
+         } else {
+-          result = a > b ? a - b : 0;
++          result = a - b;
+         }
+         nxt[at] = static_cast<std::uint8_t>(result);
+         break;

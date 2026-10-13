@@ -1,0 +1,13 @@
+# kills: T5
+# M24: And compara truthy >= entradas en lugar de == (equivalente: truthy <= entradas)
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -198,7 +198,7 @@
+         bool gate = false;
+         switch (static_cast<GateOp>(slot.mode)) {
+           case GateOp::And:
+-            gate = truthy == slot.inputs;
++            gate = truthy >= slot.inputs;
+             break;
+           case GateOp::Or:
+             gate = truthy > 0;

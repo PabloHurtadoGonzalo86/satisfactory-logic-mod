@@ -1,0 +1,13 @@
+# kills: T13
+# M88: Una lectura por encima de 15 entra en el Simulator en cada paso de la llamada y se cuenta una vez por paso
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -174,7 +174,7 @@
+       const SensorState& sensor = sensors_[i];
+       const bool first = step == 0 && sensor.pending;
+       if (sensor.mode == SensorMode::Level) {
+-        samples_[i] = (first && sensor.pendingValue > kMaxSignal) ? sensor.pendingValue : sensor.retained;
++        samples_[i] = (sensor.pending && sensor.pendingValue > kMaxSignal) ? sensor.pendingValue : sensor.retained;
+       } else {
+         samples_[i] = first ? sensor.pendingValue : Signal{0};
+       }

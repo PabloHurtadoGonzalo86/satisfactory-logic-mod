@@ -1,0 +1,13 @@
+# kills: T9, T10, T11
+# M18: Las muestras se saturan en 16 en lugar de 15
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -134,7 +134,7 @@
+ 
+   for (std::size_t i = 0; i < samples.size(); ++i) {
+     Signal value = samples[i];
+-    if (value > 15) {
++    if (value > 16) {
+       value = 15;
+       if (clamped_ != 0xFFFFFFFFu) ++clamped_;
+     }

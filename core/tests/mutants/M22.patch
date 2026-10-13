@@ -1,0 +1,13 @@
+# kills: T5
+# M22: Subtract compara a >= b en lugar de a > b (equivalente: con a = b, a - b = 0)
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -223,7 +223,7 @@
+         if (static_cast<CompareMode>(slot.mode) == CompareMode::Compare) {
+           result = b <= a ? a : 0;
+         } else {
+-          result = a > b ? a - b : 0;
++          result = a >= b ? a - b : 0;
+         }
+         nxt[at] = static_cast<std::uint8_t>(result);
+         break;

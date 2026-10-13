@@ -1,0 +1,13 @@
+# kills: T5, T14
+# M08: Toggle conmuta por nivel en lugar de por flanco de subida
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -236,7 +236,7 @@
+       }
+       case Kind::Toggle: {
+         const bool high = nets[pinNet[pins]] > 0;
+-        const bool rising = high && cur[at + 1] == 0;
++        const bool rising = high;
+         nxt[at] = rising ? static_cast<std::uint8_t>(15 - cur[at]) : cur[at];
+         nxt[at + 1] = high ? std::uint8_t{1} : std::uint8_t{0};
+         break;

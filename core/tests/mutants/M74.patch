@@ -1,0 +1,16 @@
+# kills: T11
+# M74: Un cable se juzga primero el pin b y después el pin a
+--- a/core/src/netlist.cpp
++++ b/core/src/netlist.cpp
+@@ -132,9 +132,9 @@
+ 
+   // connect and disconnect judge a wire the same way: pin a (component, then pin), pin b, then a wire onto itself.
+   const auto resolveWire = [&resolvePin](const Pin& a, const Pin& b) noexcept {
+-    Status status = resolvePin(a);
++    Status status = resolvePin(b);
+     if (status != Status::Ok) return status;
+-    status = resolvePin(b);
++    status = resolvePin(a);
+     if (status != Status::Ok) return status;
+     return a == b ? Status::BadPin : Status::Ok;
+   };

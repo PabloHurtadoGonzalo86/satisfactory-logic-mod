@@ -1,0 +1,13 @@
+# kills: T5, T11, T12
+# M77: Una aridad de Gate por encima de su tope y del rango del catálogo da BadSpec en vez de LimitExceeded (la lectura antigua de classifyUpper, B2)
+--- a/core/src/internal/spec_rules.cpp
++++ b/core/src/internal/spec_rules.cpp
+@@ -49,7 +49,7 @@
+       return (spec.p0 == 0 && spec.p1 == 0 && spec.p2 == 0) ? Status::Ok : Status::BadSpec;
+     case Kind::Gate:
+       if (spec.p0 > static_cast<std::uint16_t>(GateOp::Xor) || spec.p1 > 1 || spec.p2 == 0) return Status::BadSpec;
+-      return spec.p2 > limits.maxArity ? Status::LimitExceeded : Status::Ok;
++      return spec.p2 > limits.maxArity ? (spec.p2 > 8 ? Status::BadSpec : Status::LimitExceeded) : Status::Ok;
+     case Kind::Delay:
+       if (spec.p1 != 0 || spec.p2 != 0 || spec.p0 == 0) return Status::BadSpec;
+       return spec.p0 > limits.maxDelay ? Status::LimitExceeded : Status::Ok;

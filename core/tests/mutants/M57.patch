@@ -1,0 +1,13 @@
+# kills: T7
+# M57: El lint no informa de un componente que lee una red que él mismo maneja (autolazo): su SCC es el componente más el nodo de esa red, tamaño 2, y size > 2 nunca se cumple
+--- a/core/src/lint.cpp
++++ b/core/src/lint.cpp
+@@ -143,7 +143,7 @@
+   for (std::uint32_t k = sccs.start[scc]; k < sccs.start[scc + 1]; ++k) {
+     if (sccs.members[k] < g.components) ++comps;
+   }
+-  return comps >= 2 || (comps == 1 && size > 1);
++  return comps >= 2 || (comps == 1 && size > 2);
+ }
+ 
+ std::uint32_t weightOf(const Spec& spec) noexcept {

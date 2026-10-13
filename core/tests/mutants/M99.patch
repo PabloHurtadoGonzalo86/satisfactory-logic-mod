@@ -1,0 +1,13 @@
+# kills: T13
+# M99: Los sensores sin resolver no retienen ningún actuador
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -188,7 +188,7 @@
+   // sensor or that is still settling.
+   std::vector<std::size_t> waiting;
+   for (const SensorState& sensor : sensors_) {
+-    if (sensor.unresolved) waiting.push_back(graph_.slotOf(sensor.id));
++    if (sensor.unresolved && false) waiting.push_back(graph_.slotOf(sensor.id));
+   }
+   const std::vector<std::uint8_t> withheld = waiting.empty() ? std::vector<std::uint8_t>{} : graph_.descendantsOf(waiting);
+ 

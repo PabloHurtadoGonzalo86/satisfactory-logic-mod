@@ -1,0 +1,12 @@
+# kills: T13
+# M81: Un sensor que se resuelve no arma la retención de los actuadores de su cono
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -164,7 +164,6 @@
+   }
+   // 2. A sensor that stops being unresolved moves its cone from the default it fed to the real value: that
+   // transient starts with the first step below, so the hold starts here.
+-  if (options_.settleGuard && !resolved.empty()) armHold(graph_.descendantsOf(resolved));
+ 
+   // 3. The steps: one sample for the whole call. A reading above 15 enters the simulator once, in the first step
+   // that uses it, so that clampedSamples() counts the reading and not the steps it stays in force.

@@ -1,0 +1,13 @@
+# kills: G1, T14
+# M11: El actuador emite X_tau en lugar de X_tau+1 (los mandos se leen del búfer anterior)
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -86,7 +86,7 @@
+ void Simulator::refreshCommands() noexcept {
+   commands_.resize(actuatorSlot_.size());
+   for (std::size_t i = 0; i < actuatorSlot_.size(); ++i) {
+-    commands_[i] = state_[slots_[actuatorSlot_[i]].stateOffset];
++    commands_[i] = next_[slots_[actuatorSlot_[i]].stateOffset];
+   }
+ }
+ 

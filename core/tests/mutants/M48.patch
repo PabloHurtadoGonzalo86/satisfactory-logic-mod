@@ -1,0 +1,13 @@
+# kills: T13, G12
+# M48: StepPacer recorta con steps >= max en lugar de > max (equivalente: el exceso es 0)
+--- a/core/src/host/step_pacer.cpp
++++ b/core/src/host/step_pacer.cpp
+@@ -14,7 +14,7 @@
+   std::uint64_t steps = accumulated_ / stepMicros_;
+   accumulated_ %= stepMicros_;
+   // The backlog is discarded, not repaid: logical time stretches under load and never spirals.
+-  if (steps > maxSteps_) {
++  if (steps >= maxSteps_) {
+     dropped_ += steps - maxSteps_;
+     steps = maxSteps_;
+   }

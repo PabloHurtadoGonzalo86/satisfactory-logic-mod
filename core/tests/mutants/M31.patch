@@ -1,0 +1,13 @@
+# kills: T5, T11
+# M31: Una semilla de Clock mayor que 255 pierde su byte alto al crear el componente
+--- a/core/src/internal/spec_rules.cpp
++++ b/core/src/internal/spec_rules.cpp
+@@ -132,7 +132,7 @@
+       break;
+     case Kind::Clock:
+       dst[0] = static_cast<std::uint8_t>(seed & 0xFFu);
+-      dst[1] = static_cast<std::uint8_t>((seed >> 8) & 0xFFu);
++      dst[1] = 0;
+       break;
+     case Kind::Delay:
+       for (std::uint8_t& cell : dst) cell = value;

@@ -1,0 +1,13 @@
+# kills: T12
+# M35: decode acepta cables repetidos y descendentes que comparten el pin menor
+--- a/core/src/simulator_codec.cpp
++++ b/core/src/simulator_codec.cpp
+@@ -147,7 +147,7 @@
+     if (!(a < b)) return Status::FormatCorrupt;
+     if (!wires.empty()) {
+       const Wire& last = wires.back();
+-      if (!(last.a < a || (last.a == a && last.b < b))) return Status::FormatCorrupt;
++      if (!(last.a < a || last.a == a)) return Status::FormatCorrupt;
+     }
+     const std::size_t slotA = internal::findSlot(comps, idA);
+     const std::size_t slotB = internal::findSlot(comps, idB);

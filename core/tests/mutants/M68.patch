@@ -1,0 +1,12 @@
+# kills: T13
+# M68: runCall se acepta entre runCall y endCall
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -141,7 +141,6 @@
+ }
+ 
+ Status FrameDriver::runCall(std::uint32_t steps, std::uint32_t /*elapsedMicros*/) {
+-  if (inCall_) return Status::WrongPhase;
+   syncIfStale();
+ 
+   // 1. Readings and the timeout, in executed steps. A sensor resolves with its first reading or when it has waited

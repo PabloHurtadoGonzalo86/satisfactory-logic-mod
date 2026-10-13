@@ -1,0 +1,13 @@
+# kills: T12
+# M67: Una versión inferior a la soportada solo se rechaza cuando lo son las dos
+--- a/core/src/simulator_codec.cpp
++++ b/core/src/simulator_codec.cpp
+@@ -74,7 +74,7 @@
+     versions.u16(formatVersion);
+     versions.u16(semanticsVersion);
+     if (formatVersion > kFormatVersion || semanticsVersion > kSemanticsVersion) return Status::FormatTooNew;
+-    if (formatVersion != kFormatVersion || semanticsVersion != kSemanticsVersion) return Status::FormatCorrupt;
++    if (formatVersion != kFormatVersion && semanticsVersion != kSemanticsVersion) return Status::FormatCorrupt;
+   }
+   if (bytes.size() < kHeaderBytes + kTailBytes) return Status::FormatCorrupt;
+ 

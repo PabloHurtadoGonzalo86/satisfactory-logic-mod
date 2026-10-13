@@ -1,0 +1,13 @@
+# kills: T12
+# M37: decode rechaza un blob con exactamente maxWires cables
+--- a/core/src/simulator_codec.cpp
++++ b/core/src/simulator_codec.cpp
+@@ -97,7 +97,7 @@
+   if (!r.u32(hostStepMicros) || !r.u64(tick) || !r.u32(nextId) || !r.u32(componentCount) || !r.u32(wireCount)) {
+     return Status::FormatCorrupt;
+   }
+-  if (componentCount > limits.maxComponents || wireCount > limits.maxWires) return Status::LimitExceeded;
++  if (componentCount > limits.maxComponents || wireCount >= limits.maxWires) return Status::LimitExceeded;
+   // Each count is held to the bytes left on its own: a blob that fails later for another reason keeps that reason.
+   if (componentCount * kComponentRecordBytes > r.remaining() || wireCount * kWireRecordBytes > r.remaining()) {
+     return Status::FormatCorrupt;

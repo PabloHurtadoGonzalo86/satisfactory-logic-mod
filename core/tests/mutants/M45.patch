@@ -1,0 +1,13 @@
+# kills: T11, T2
+# M45: EditBatch::add devuelve el id centinela 0xFFFFFFFF en vez de 0 cuando se agota el espacio de ids
+--- a/core/src/netlist.cpp
++++ b/core/src/netlist.cpp
+@@ -12,7 +12,7 @@
+ ComponentId EditBatch::add(Spec spec, std::uint16_t seed) {
+   ComponentId id = 0;  // 0 marks an exhausted id space; apply reports LimitExceeded
+   const std::uint64_t candidate = std::uint64_t{base_} + autoAdds_;
+-  if (candidate < internal::kIdSentinel) id = static_cast<ComponentId>(candidate);
++  if (candidate <= internal::kIdSentinel) id = static_cast<ComponentId>(candidate);
+   ++autoAdds_;
+   Op op;
+   op.kind = OpKind::Add;

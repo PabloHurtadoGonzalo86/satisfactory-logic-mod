@@ -1,0 +1,13 @@
+# kills: T13
+# M78: La espera de un sensor sin lectura cuenta llamadas y no los pasos que corre cada una
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -154,7 +154,7 @@
+       if (sensor.mode == SensorMode::Level) sensor.retained = std::min(sensor.pendingValue, kMaxSignal);
+       resolves = sensor.unresolved;
+     } else if (sensor.unresolved) {
+-      sensor.waitedSteps += steps;
++      sensor.waitedSteps += 1;
+       resolves = sensor.waitedSteps >= limit;
+     }
+     if (resolves) {

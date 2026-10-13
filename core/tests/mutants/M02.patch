@@ -1,0 +1,13 @@
+# kills: T5, G6
+# M02: La fusión de red es una suma saturada min(15, a + b) en lugar de max
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -175,7 +175,7 @@
+         break;
+     }
+     Signal& net = nets[pinNet[slot.pinFirst + slot.inputs]];
+-    if (out > net) net = out;
++    net = static_cast<Signal>(net + out > 15 ? 15 : net + out);
+   }
+ 
+   // Phase C: X_{tau+1} is written into the other buffer; nothing reads it until the swap.

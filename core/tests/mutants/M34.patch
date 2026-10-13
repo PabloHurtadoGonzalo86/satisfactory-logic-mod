@@ -1,0 +1,13 @@
+# kills: T12
+# M34: decode acepta un cable de un pin a sí mismo
+--- a/core/src/simulator_codec.cpp
++++ b/core/src/simulator_codec.cpp
+@@ -144,7 +144,7 @@
+     if (!r.u32(idA) || !r.u8(indexA) || !r.u32(idB) || !r.u8(indexB)) return Status::FormatCorrupt;
+     const Pin a{idA, indexA};
+     const Pin b{idB, indexB};
+-    if (!(a < b)) return Status::FormatCorrupt;
++    if (b < a) return Status::FormatCorrupt;
+     if (!wires.empty()) {
+       const Wire& last = wires.back();
+       if (!(last.a < a || (last.a == a && last.b < b))) return Status::FormatCorrupt;

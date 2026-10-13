@@ -1,0 +1,13 @@
+# kills: T13
+# M100: La primera lectura de un sensor no lo resuelve (solo la espera lo hace)
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -152,7 +152,7 @@
+     bool resolves = false;
+     if (sensor.pending) {
+       if (sensor.mode == SensorMode::Level) sensor.retained = std::min(sensor.pendingValue, kMaxSignal);
+-      resolves = sensor.unresolved;
++      resolves = false;
+     } else if (sensor.unresolved) {
+       sensor.waitedSteps += steps;
+       resolves = sensor.waitedSteps >= limit;

@@ -1,0 +1,13 @@
+# kills: T12
+# M32: decode acepta nextId igual al mayor id
+--- a/core/src/simulator_codec.cpp
++++ b/core/src/simulator_codec.cpp
+@@ -132,7 +132,7 @@
+     comps.emplace_back(id, spec);
+     previousId = id;
+   }
+-  if (nextId == 0 || nextId <= previousId) return Status::FormatCorrupt;
++  if (nextId == 0 || nextId < previousId) return Status::FormatCorrupt;
+ 
+   std::vector<Wire> wires;
+   wires.reserve(wireCount);

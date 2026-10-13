@@ -1,0 +1,13 @@
+# kills: T13
+# M87: Una lectura Level por encima de 15 se retiene sin saturar
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -151,7 +151,7 @@
+   for (SensorState& sensor : sensors_) {
+     bool resolves = false;
+     if (sensor.pending) {
+-      if (sensor.mode == SensorMode::Level) sensor.retained = std::min(sensor.pendingValue, kMaxSignal);
++      if (sensor.mode == SensorMode::Level) sensor.retained = sensor.pendingValue;
+       resolves = sensor.unresolved;
+     } else if (sensor.unresolved) {
+       sensor.waitedSteps += steps;

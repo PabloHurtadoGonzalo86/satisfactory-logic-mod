@@ -1,0 +1,12 @@
+# kills: T2, T11
+# M71: Un id explícito igual o mayor que el siguiente automático adelanta la cuenta de add() (la regla antigua de EditBatch::add)
+--- a/core/src/netlist.cpp
++++ b/core/src/netlist.cpp
+@@ -24,6 +24,7 @@
+ }
+ 
+ void EditBatch::addWithId(ComponentId id, Spec spec, std::uint16_t seed) {
++  if (std::uint64_t{id} >= std::uint64_t{base_} + autoAdds_) autoAdds_ = std::uint64_t{id} + 1 - base_;
+   Op op;
+   op.kind = OpKind::AddWithId;
+   op.id = id;

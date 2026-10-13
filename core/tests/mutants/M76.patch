@@ -1,0 +1,13 @@
+# kills: T12
+# M76: decode compara la suma de los dos conteos con los bytes restantes en vez de cada uno por separado
+--- a/core/src/simulator_codec.cpp
++++ b/core/src/simulator_codec.cpp
+@@ -99,7 +99,7 @@
+   }
+   if (componentCount > limits.maxComponents || wireCount > limits.maxWires) return Status::LimitExceeded;
+   // Each count is held to the bytes left on its own: a blob that fails later for another reason keeps that reason.
+-  if (componentCount * kComponentRecordBytes > r.remaining() || wireCount * kWireRecordBytes > r.remaining()) {
++  if (componentCount * kComponentRecordBytes + wireCount * kWireRecordBytes > r.remaining()) {
+     return Status::FormatCorrupt;
+   }
+ 

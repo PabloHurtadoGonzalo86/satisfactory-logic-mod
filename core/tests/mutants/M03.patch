@@ -1,0 +1,13 @@
+# kills: T1, T5
+# M03: La fusión de red es «el último conductor gana» (por id ascendente)
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -175,7 +175,7 @@
+         break;
+     }
+     Signal& net = nets[pinNet[slot.pinFirst + slot.inputs]];
+-    if (out > net) net = out;
++    net = out;
+   }
+ 
+   // Phase C: X_{tau+1} is written into the other buffer; nothing reads it until the swap.

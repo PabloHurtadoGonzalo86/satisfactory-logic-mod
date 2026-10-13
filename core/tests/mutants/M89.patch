@@ -1,0 +1,13 @@
+# kills: T13
+# M89: Una lectura Pulse que no encontró ningún paso (llamada de 0 pasos) se conserva para la llamada siguiente
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -182,7 +182,7 @@
+     const Status status = sim_->step(samples_);
+     if (status != Status::Ok) return status;
+   }
+-  for (SensorState& sensor : sensors_) sensor.pending = false;  // a Pulse reading that met no step is dropped
++  if (steps > 0) for (SensorState& sensor : sensors_) sensor.pending = false;  // a Pulse reading that met no step is dropped
+ 
+   // 4. What the world is told: final values only, and not for an actuator whose cone still holds an unresolved
+   // sensor or that is still settling.

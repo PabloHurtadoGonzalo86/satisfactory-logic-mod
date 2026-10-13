@@ -1,0 +1,13 @@
+# kills: T13
+# M98: El tiempo de espera ignora hostStepMicros y usa siempre el paso por defecto
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -77,7 +77,7 @@
+ }
+ 
+ std::uint64_t FrameDriver::timeoutSteps() const noexcept {
+-  const std::uint64_t step = effectiveStepMicros(sim_->hostStepMicros());
++  const std::uint64_t step = kDefaultStepMicros;
+   return (std::uint64_t{options_.resolveTimeoutMicros} + step - 1) / step;
+ }
+ 

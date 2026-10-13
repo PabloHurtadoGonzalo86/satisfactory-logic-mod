@@ -1,0 +1,13 @@
+# kills: T12
+# M33: decode acepta un id de componente repetido
+--- a/core/src/simulator_codec.cpp
++++ b/core/src/simulator_codec.cpp
+@@ -113,7 +113,7 @@
+     std::uint16_t p1 = 0;
+     std::uint16_t p2 = 0;
+     if (!r.u32(id) || !r.u8(kind) || !r.u16(p0) || !r.u16(p1) || !r.u16(p2)) return Status::FormatCorrupt;
+-    if (id == internal::kIdSentinel || id <= previousId) return Status::FormatCorrupt;
++    if (id == internal::kIdSentinel || id < previousId) return Status::FormatCorrupt;
+     if (!internal::validKindByte(kind)) return Status::FormatCorrupt;
+ 
+     const Spec spec{static_cast<Kind>(kind), p0, p1, p2};

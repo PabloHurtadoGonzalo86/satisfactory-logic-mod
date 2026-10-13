@@ -1,0 +1,13 @@
+# kills: T10, T11
+# M61: clampedSamples cuenta dos veces cada muestra saturada
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -136,7 +136,7 @@
+     Signal value = samples[i];
+     if (value > 15) {
+       value = 15;
+-      if (clamped_ != 0xFFFFFFFFu) ++clamped_;
++      if (clamped_ != 0xFFFFFFFFu) clamped_ += 2;
+     }
+     sensorOut_[sensorSlot_[i]] = value;
+   }

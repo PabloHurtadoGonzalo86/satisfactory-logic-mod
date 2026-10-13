@@ -1,0 +1,13 @@
+# kills: T13
+# M83: Un apply arma la retención de todos los actuadores, no solo de los cuyo cono cambió
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -112,7 +112,7 @@
+     const bool same = b < before.size() && before[b].id == after[slot].id && before[b].hash == after[slot].hash;
+     if (!same) changed.push_back(slot);
+   }
+-  if (!changed.empty()) armHold(graph_.descendantsOf(changed));
++  if (!changed.empty()) { std::vector<std::size_t> everything; for (std::size_t at = 0; at < after.size(); ++at) everything.push_back(at); armHold(graph_.descendantsOf(everything)); }
+   return Status::Ok;
+ }
+ 
