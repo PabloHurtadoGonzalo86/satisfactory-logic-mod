@@ -1,0 +1,12 @@
+# kills: T13
+# M69: El blob del driver se puede decodificar entre runCall y endCall
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -254,7 +254,6 @@
+ 
+ Status FrameDriver::decode(std::span<const std::uint8_t> bytes) {
+   using internal::ByteReader;
+-  if (inCall_) return Status::WrongPhase;
+ 
+   if (bytes.size() < 4) return Status::FormatCorrupt;
+   for (std::size_t i = 0; i < 4; ++i) {

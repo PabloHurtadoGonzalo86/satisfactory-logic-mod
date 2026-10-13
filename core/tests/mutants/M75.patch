@@ -1,0 +1,13 @@
+# kills: T12
+# M75: decode juzga el total de ranuras de Delay mientras lee los componentes (antes de las demás comprobaciones del blob)
+--- a/core/src/simulator_codec.cpp
++++ b/core/src/simulator_codec.cpp
+@@ -126,7 +126,7 @@
+     std::span<const std::uint8_t> stateBytes;
+     if (!r.take(internal::stateSize(spec), stateBytes)) return Status::FormatCorrupt;
+     if (!internal::stateInDomain(spec, stateBytes)) return Status::FormatCorrupt;
+-    if (spec.kind == Kind::Delay) delayCells += spec.p0;
++    if (spec.kind == Kind::Delay && (delayCells += spec.p0) > limits.maxDelayCells) return Status::LimitExceeded;
+     state.insert(state.end(), stateBytes.begin(), stateBytes.end());
+     comps.emplace_back(id, spec);
+     previousId = id;

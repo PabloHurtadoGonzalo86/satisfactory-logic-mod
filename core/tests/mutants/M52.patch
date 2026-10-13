@@ -1,0 +1,13 @@
+# kills: T13
+# M52: El driver entrega en cada llamada todo mando distinto de 0, no solo los cambios
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -199,7 +199,7 @@
+     actuator.hold = actuator.hold > steps ? actuator.hold - steps : 0;
+     if (!withheld.empty() && withheld[graph_.slotOf(actuator.id)] != 0) continue;
+     if (options_.settleGuard && actuator.hold != 0) continue;
+-    if (actuator.confirmed != commands[i]) changes_.push_back(ActuatorChange{actuator.id, actuator.confirmed, commands[i]});
++    if (actuator.confirmed != commands[i] || commands[i] != 0) changes_.push_back(ActuatorChange{actuator.id, actuator.confirmed, commands[i]});
+   }
+   inCall_ = true;
+   return Status::Ok;

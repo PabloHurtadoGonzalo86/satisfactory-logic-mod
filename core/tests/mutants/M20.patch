@@ -1,0 +1,13 @@
+# kills: T4, T5
+# M20: Delay desplaza una ranura de menos (longitud del FIFO), con guarda para que d = 1 siga definido
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -212,7 +212,7 @@
+       }
+       case Kind::Delay: {
+         const std::uint32_t length = slot.p0;
+-        std::copy(cur + at + 1, cur + at + length, nxt + at);
++        std::copy(cur + at + 1, cur + at + (length > 1 ? length - 1 : 1), nxt + at);
+         nxt[at + length - 1] = nets[pinNet[pins]];
+         break;
+       }

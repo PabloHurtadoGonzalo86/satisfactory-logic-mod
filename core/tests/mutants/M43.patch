@@ -1,0 +1,13 @@
+# kills: T11
+# M43: apply rechaza exactamente maxDelayCells ranuras de Delay
+--- a/core/src/netlist.cpp
++++ b/core/src/netlist.cpp
+@@ -212,7 +212,7 @@
+   for (const auto& c : comps) {
+     if (c.second.kind == Kind::Delay) delayCells += c.second.p0;
+   }
+-  if (delayCells > limits_.maxDelayCells) return Status::LimitExceeded;
++  if (delayCells >= limits_.maxDelayCells) return Status::LimitExceeded;
+ 
+   out.limits_ = limits_;
+   out.components_.clear();

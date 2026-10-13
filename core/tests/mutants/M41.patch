@@ -1,0 +1,13 @@
+# kills: T11
+# M41: apply rechaza exactamente maxComponents componentes
+--- a/core/src/netlist.cpp
++++ b/core/src/netlist.cpp
+@@ -206,7 +206,7 @@
+   }
+ 
+   // Limits judge the netlist the batch leaves behind, not its intermediate steps.
+-  if (comps.size() > limits_.maxComponents) return Status::LimitExceeded;
++  if (comps.size() >= limits_.maxComponents) return Status::LimitExceeded;
+   if (adjacency.size() / 2 > limits_.maxWires) return Status::LimitExceeded;
+   std::uint64_t delayCells = 0;
+   for (const auto& c : comps) {

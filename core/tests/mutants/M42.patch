@@ -1,0 +1,13 @@
+# kills: T11
+# M42: apply rechaza exactamente maxWires cables
+--- a/core/src/netlist.cpp
++++ b/core/src/netlist.cpp
+@@ -207,7 +207,7 @@
+ 
+   // Limits judge the netlist the batch leaves behind, not its intermediate steps.
+   if (comps.size() > limits_.maxComponents) return Status::LimitExceeded;
+-  if (adjacency.size() / 2 > limits_.maxWires) return Status::LimitExceeded;
++  if (adjacency.size() / 2 >= limits_.maxWires) return Status::LimitExceeded;
+   std::uint64_t delayCells = 0;
+   for (const auto& c : comps) {
+     if (c.second.kind == Kind::Delay) delayCells += c.second.p0;

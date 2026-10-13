@@ -1,0 +1,13 @@
+# kills: T11
+# M73: disconnect no juzga sus pines (UnknownWire para todo, la lectura antigua de B4)
+--- a/core/src/netlist.cpp
++++ b/core/src/netlist.cpp
+@@ -195,7 +195,7 @@
+         break;
+       }
+       case EditOp::Disconnect: {
+-        const Status pins = resolveWire(op.a, op.b);
++        const Status pins = Status::Ok;
+         if (pins != Status::Ok) return pins;
+         if (!adjacency.contains(WirePair{op.a, op.b})) return Status::UnknownWire;
+         adjacency.erase(WirePair{op.a, op.b});

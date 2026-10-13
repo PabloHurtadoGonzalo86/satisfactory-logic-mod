@@ -1,0 +1,13 @@
+# kills: T13, G12
+# M47: StepPacer cuenta todo el retraso como descartado en lugar del exceso sobre el tope
+--- a/core/src/host/step_pacer.cpp
++++ b/core/src/host/step_pacer.cpp
+@@ -15,7 +15,7 @@
+   accumulated_ %= stepMicros_;
+   // The backlog is discarded, not repaid: logical time stretches under load and never spirals.
+   if (steps > maxSteps_) {
+-    dropped_ += steps - maxSteps_;
++    dropped_ += steps;
+     steps = maxSteps_;
+   }
+   return static_cast<std::uint32_t>(steps);

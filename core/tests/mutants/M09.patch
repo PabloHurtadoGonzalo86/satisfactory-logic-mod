@@ -1,0 +1,13 @@
+# kills: G8
+# M09: Toggle nace con p = 0 en lugar de p = 1
+--- a/core/src/internal/spec_rules.cpp
++++ b/core/src/internal/spec_rules.cpp
+@@ -128,7 +128,7 @@
+       break;
+     case Kind::Toggle:
+       dst[0] = value;
+-      dst[1] = 1;  // the first tick must not see an edge (01 section 6.2)
++      dst[1] = 0;  // the first tick must not see an edge (01 section 6.2)
+       break;
+     case Kind::Clock:
+       dst[0] = static_cast<std::uint8_t>(seed & 0xFFu);

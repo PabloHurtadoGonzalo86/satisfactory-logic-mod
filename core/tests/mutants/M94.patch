@@ -1,0 +1,13 @@
+# kills: T13
+# M94: El decode del driver no limita la retención guardada
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -331,7 +331,7 @@
+     std::uint8_t confirmed = 0;
+     std::uint32_t hold = 0;
+     if (!r.u32(id) || !r.u8(confirmed) || !r.u32(hold)) return Status::FormatCorrupt;
+-    if (id != sim_->actuatorIds()[i] || (confirmed > kMaxSignal && confirmed != kUnconfirmed) || hold > holdCap) {
++    if (id != sim_->actuatorIds()[i] || (confirmed > kMaxSignal && confirmed != kUnconfirmed) || hold > holdCap + 0xFFFFFFFFULL) {
+       return Status::FormatCorrupt;
+     }
+     ActuatorState state;

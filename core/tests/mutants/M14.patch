@@ -1,0 +1,13 @@
+# kills: T13, G12
+# M14: StepPacer pierde el resto (acc = 0 tras cada llamada)
+--- a/core/src/host/step_pacer.cpp
++++ b/core/src/host/step_pacer.cpp
+@@ -12,7 +12,7 @@
+   }
+   accumulated_ += elapsedMicros;
+   std::uint64_t steps = accumulated_ / stepMicros_;
+-  accumulated_ %= stepMicros_;
++  accumulated_ = 0;
+   // The backlog is discarded, not repaid: logical time stretches under load and never spirals.
+   if (steps > maxSteps_) {
+     dropped_ += steps - maxSteps_;

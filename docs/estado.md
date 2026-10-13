@@ -10,7 +10,7 @@ las demás secciones de la web.
 | 0. Investigación | 7 temas con fuentes primarias, 78 veredictos de escépticos independientes (46 confirmados, 31 parcialmente correctos, 0 refutados, 1 no verificable) y un crítico de huecos | **Hecha**: [Investigación](research/README.md) |
 | 1. Teoría | 7 documentos en español, de binario y hexadecimal a máquinas de estado; cada cifra la genera y comprueba un script | **Hecha y revisada**: una revisión independiente halló 22 problemas de prosa y se corrigieron ([revisión](review/theory-review-20261013.md)) |
 | 2. Especificación del núcleo | Semántica, API, plan de pruebas y decisiones; tres arquitectos propusieron, dos jueces puntuaron | **Hecha**: [especificación](spec/01-semantica.md) |
-| 3. Núcleo del simulador (C++ sin Unreal) | Implementación, oráculo independiente en Python, tests, mutantes y revisiones | **En curso**: oráculo e implementación escritos; integración y pruebas en marcha |
+| 3. Núcleo del simulador (C++ sin Unreal) | Implementación, oráculo independiente en Python, tests, mutantes y revisiones | **Hecho y en revisión**: núcleo, capa del anfitrión, pruebas de propiedades, trazas doradas, mutantes y oráculo coinciden; las 29 ambigüedades que halló el oráculo están arbitradas ([ambigüedades](spec/ambiguities.md)) |
 | 4. Prueba mínima en el PC del propietario | Qué puede y qué no puede hacer un mod en el juego (tipo de cable, gancho de tick, edificio nativo en servidor Linux) | **Preparada, sin ejecutar**: criterios, procedimiento y un plugin cuyos 300 símbolos se auditaron contra el SDK ([prueba mínima](spike/01-objetivos-y-criterios.md)). Falta que el propietario la ejecute; es el mayor riesgo del proyecto |
 | 5. Adaptador de Unreal | Subsistema de servidor, sensores y actuadores, edificios | Pendiente de la fase 4 |
 | 6. Publicación | Mod en ficsit.app con declaración de uso de IA | Pendiente; requiere la cuenta del propietario. La **web y el repositorio ya son públicos** desde el 13-oct-2026 |
@@ -26,7 +26,8 @@ las demás secciones de la web.
 
 Las decisiones del propietario están en [Decisiones del proyecto](decisions/0001-decisiones-iniciales.md). El diseño
 del núcleo ya aplica valores por defecto a cinco puntos que conviene que el propietario confirme
-([Decisiones del diseño](spec/04-decisiones.md)):
+([Decisiones del diseño](spec/04-decisiones.md)); el arbitraje de las ambigüedades añadió D28 a D35 (clasificación de
+estados, orden de `decode`, ids de un lote y política del `FrameDriver`), con D31 a D35 también por confirmar:
 
 | Id | Punto | Valor por defecto aplicado |
 | --- | --- | --- |
@@ -38,8 +39,7 @@ del núcleo ya aplica valores por defecto a cinco puntos que conviene que el pro
 
 ## Qué sigue
 
-1. Cerrar el núcleo: integración, tests verdes, mutación y revisiones, y publicar sus resultados en esta web.
-2. Incorporar a la especificación las 29 ambigüedades que halló el oráculo ([ambigüedades](spec/ambiguities.md)).
-3. Preparar la prueba mínima del PC: un script de un comando y una lista de comprobaciones.
-4. Una demostración interactiva del simulador en la propia web (el mismo núcleo compilado a WebAssembly).
-5. Elegir el nombre definitivo y la referencia de ficsit.app, que es permanente.
+1. Revisar y fusionar el núcleo, y publicar sus resultados en esta web.
+2. Preparar la prueba mínima del PC: un script de un comando y una lista de comprobaciones.
+3. Una demostración interactiva del simulador en la propia web (el mismo núcleo compilado a WebAssembly).
+4. Elegir el nombre definitivo y la referencia de ficsit.app, que es permanente.

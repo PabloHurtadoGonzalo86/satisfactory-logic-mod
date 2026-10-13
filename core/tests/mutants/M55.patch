@@ -1,0 +1,13 @@
+# kills: T13
+# M55: decode acepta un valor retenido de un sensor Level por encima de 15 (la comprobación de dominio del blob del driver, D34)
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -315,7 +315,7 @@
+     state.id = id;
+     state.mode = static_cast<SensorMode>(mode);
+     // A Level holds a reading in 0..15; a Pulse holds none.
+-    if (retained > (state.mode == SensorMode::Pulse ? Signal{0} : kMaxSignal)) return Status::FormatCorrupt;
++    if (state.mode == SensorMode::Pulse && retained != 0) return Status::FormatCorrupt;
+     state.retained = retained;
+     sensors.push_back(state);
+   }

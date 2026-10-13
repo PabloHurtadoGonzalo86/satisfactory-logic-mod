@@ -1,0 +1,12 @@
+# kills: T13
+# M90: Cambiar el modo de un sensor conserva el valor retenido
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -121,7 +121,6 @@
+   SensorState* state = findSensor(sensor);
+   if (state == nullptr || state->mode == mode) return;
+   state->mode = mode;
+-  state->retained = 0;  // a Pulse carries no value over, and a Level that was a Pulse has none to retain
+ }
+ 
+ void FrameDriver::resync() {

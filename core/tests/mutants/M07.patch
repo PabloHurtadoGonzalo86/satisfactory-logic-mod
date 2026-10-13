@@ -1,0 +1,13 @@
+# kills: G4, T5
+# M07: Dominancia del Latch invertida (gana set sobre reset)
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -231,7 +231,7 @@
+       case Kind::Latch: {
+         const bool set = nets[pinNet[pins]] > 0;
+         const bool reset = nets[pinNet[pins + 1]] > 0;
+-        nxt[at] = reset ? std::uint8_t{0} : (set ? std::uint8_t{15} : cur[at]);
++        nxt[at] = set ? std::uint8_t{15} : (reset ? std::uint8_t{0} : cur[at]);
+         break;
+       }
+       case Kind::Toggle: {

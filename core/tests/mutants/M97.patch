@@ -1,0 +1,12 @@
+# kills: T13
+# M97: El decode del driver descarta las retenciones guardadas
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -337,7 +337,6 @@
+     ActuatorState state;
+     state.id = id;
+     state.confirmed = confirmed;
+-    state.hold = hold;
+     actuators.push_back(state);
+   }
+ 

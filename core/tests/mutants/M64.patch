@@ -1,0 +1,13 @@
+# kills: T13
+# M64: Un actuador creado con salida inicial distinta de 0 se da por confirmado en 0, así que el driver lo escribe al crearlo (02 §7.5)
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -45,7 +45,7 @@
+   for (std::size_t i = 0; i < ids.size(); ++i) {
+     ActuatorState state;
+     state.id = ids[i];
+-    state.confirmed = commands[i];  // a created actuator is never written to (02 section 7.5)
++    state.confirmed = commands[i] != 0 ? Signal{0} : commands[i];  // a created actuator is never written to (02 section 7.5)
+     const auto known = std::lower_bound(actuators_.begin(), actuators_.end(), ids[i],
+                                         [](const ActuatorState& a, ComponentId key) { return a.id < key; });
+     if (known != actuators_.end() && known->id == ids[i]) state = *known;

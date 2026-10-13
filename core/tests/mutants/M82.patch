@@ -1,0 +1,13 @@
+# kills: T13
+# M82: La retención se arma en todo actuador con L_a definido, sin mirar las marcas del cono (al resolverse un sensor y tras un apply)
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -85,7 +85,7 @@
+   for (std::size_t i = 0; i < actuators_.size() && i < bounds_.size(); ++i) {
+     if (!bounds_[i].has_value()) continue;
+     const std::size_t slot = graph_.slotOf(actuators_[i].id);
+-    if (slot == detail::kNoSlot || marks[slot] == 0) continue;
++    if (slot == detail::kNoSlot || marks[slot] > 1) continue;
+     actuators_[i].hold = std::max(actuators_[i].hold, *bounds_[i]);
+   }
+ }

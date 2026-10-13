@@ -1,0 +1,13 @@
+# kills: T10, T11
+# M12: decode no restaura nextId (lo deriva como el mayor id + 1)
+--- a/core/src/simulator_codec.cpp
++++ b/core/src/simulator_codec.cpp
+@@ -170,7 +170,7 @@
+   Simulator candidate(limits, hostStepMicros);
+   candidate.netlist_.components_ = std::move(comps);
+   candidate.netlist_.wires_ = std::move(wires);
+-  candidate.netlist_.nextId_ = nextId;
++  candidate.netlist_.nextId_ = previousId + 1;
+   candidate.netlist_.finalize();
+   candidate.tick_ = tick;
+   candidate.state_ = std::move(state);

@@ -1,0 +1,13 @@
+# kills: T12
+# M66: FormatTooNew exige que las dos versiones superen la soportada
+--- a/core/src/simulator_codec.cpp
++++ b/core/src/simulator_codec.cpp
+@@ -73,7 +73,7 @@
+     std::uint16_t semanticsVersion = 0;
+     versions.u16(formatVersion);
+     versions.u16(semanticsVersion);
+-    if (formatVersion > kFormatVersion || semanticsVersion > kSemanticsVersion) return Status::FormatTooNew;
++    if (formatVersion > kFormatVersion && semanticsVersion > kSemanticsVersion) return Status::FormatTooNew;
+     if (formatVersion != kFormatVersion || semanticsVersion != kSemanticsVersion) return Status::FormatCorrupt;
+   }
+   if (bytes.size() < kHeaderBytes + kTailBytes) return Status::FormatCorrupt;

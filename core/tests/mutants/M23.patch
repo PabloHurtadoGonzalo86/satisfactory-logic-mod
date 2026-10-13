@@ -1,0 +1,13 @@
+# kills: T5
+# M23: Xor es «exactamente una entrada veraz» en lugar de paridad impar
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -204,7 +204,7 @@
+             gate = truthy > 0;
+             break;
+           case GateOp::Xor:
+-            gate = (truthy & 1u) != 0;
++            gate = truthy == 1;
+             break;
+         }
+         nxt[at] = gate != (slot.invert != 0) ? std::uint8_t{15} : std::uint8_t{0};

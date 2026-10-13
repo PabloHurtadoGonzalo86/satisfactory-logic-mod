@@ -1,0 +1,12 @@
+# kills: T13
+# M70: offer no busca un sensor creado a espaldas del driver
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -132,7 +132,6 @@
+ void FrameDriver::offer(ComponentId sensor, Signal reading) {
+   SensorState* state = findSensor(sensor);
+   if (state == nullptr) {
+-    syncIfStale();
+     state = findSensor(sensor);
+   }
+   if (state == nullptr) return;

@@ -1,0 +1,13 @@
+# kills: T13
+# M95: Una retención restaurada de un blob frena la entrega aunque la guarda esté desactivada
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -198,7 +198,7 @@
+     ActuatorState& actuator = actuators_[i];
+     actuator.hold = actuator.hold > steps ? actuator.hold - steps : 0;
+     if (!withheld.empty() && withheld[graph_.slotOf(actuator.id)] != 0) continue;
+-    if (options_.settleGuard && actuator.hold != 0) continue;
++    if (actuator.hold != 0) continue;
+     if (actuator.confirmed != commands[i]) changes_.push_back(ActuatorChange{actuator.id, actuator.confirmed, commands[i]});
+   }
+   inCall_ = true;

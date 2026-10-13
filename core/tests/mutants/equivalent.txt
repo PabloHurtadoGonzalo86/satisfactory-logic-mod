@@ -1,0 +1,6 @@
+# Mutants that no test can kill because they do not change the behaviour (proofs in equivalents.md).
+# Format: <id> <short reason>; run_mutants.sh reports them as "equivalent" and warns if one of them is ever killed.
+M22 Subtract tests a >= b: when a == b the result is a - b = 0, the same as the else branch
+M24 And tests truthy >= inputs: truthy counts some of the inputs, so truthy <= inputs and >= is ==
+M29 Clock wraps at phase >= P: phase = c + 1 with c < P (validate, decode and the transition keep it), so phase <= P and >= is ==
+M48 StepPacer caps at steps >= max: at steps == max the block adds 0 to dropped and assigns the same steps

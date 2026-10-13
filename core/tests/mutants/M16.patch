@@ -1,0 +1,13 @@
+# kills: T5, T9
+# M16: La identidad de la fusión es 1 (una red sin conductor lee 1)
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -140,7 +140,7 @@
+     }
+     sensorOut_[sensorSlot_[i]] = value;
+   }
+-  std::fill(netValue_.begin(), netValue_.end(), Signal{0});
++  std::fill(netValue_.begin(), netValue_.end(), Signal{1});
+ 
+   const std::uint8_t* cur = state_.data();
+   std::uint8_t* nxt = next_.data();

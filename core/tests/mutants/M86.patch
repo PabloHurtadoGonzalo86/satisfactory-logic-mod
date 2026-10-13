@@ -1,0 +1,12 @@
+# kills: T13
+# M86: La huella de un componente no incluye los ids de los conductores de sus entradas (recablear no cambia el cono)
+--- a/core/src/host/cone_graph.cpp
++++ b/core/src/host/cone_graph.cpp
+@@ -102,7 +102,6 @@
+     const std::size_t size = internal::stateSize(spec);
+     for (std::size_t k = 0; k < size && offset + k < blob.size(); ++k) h.byte(blob[offset + k]);
+     offset += size;
+-    for (std::uint8_t j = 0; j < table.inputs[slot]; ++j) h.u64(drivers[nets.pinNet[table.pin(slot, j)]].value());
+     signatures.push_back(ComponentSignature{comps[slot].first, h.value()});
+   }
+   return signatures;

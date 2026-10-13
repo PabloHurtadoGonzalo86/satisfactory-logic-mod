@@ -1,0 +1,13 @@
+# kills: T12
+# M38: decode rechaza exactamente maxDelayCells ranuras de Delay
+--- a/core/src/simulator_codec.cpp
++++ b/core/src/simulator_codec.cpp
+@@ -159,7 +159,7 @@
+   if (r.remaining() != 0) return Status::FormatCorrupt;
+ 
+   // The whole-netlist limits come last (02 section 6.3), after every check that a corrupt blob can fail.
+-  if (delayCells > limits.maxDelayCells) return Status::LimitExceeded;
++  if (delayCells >= limits.maxDelayCells) return Status::LimitExceeded;
+   if (!wires.empty()) {
+     const internal::PinTable table = internal::buildPinTable(comps);
+     const internal::Nets nets = internal::buildNets(table, comps, wires);

@@ -1,0 +1,190 @@
+name: Core CI
+
+# Pull requests and pushes run the fast gates. The weekly run (Monday 03:00 UTC) and manual
+# dispatches add mutation and fuzzing, which are too heavy for every push on the Free plan.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      fuzz_seconds:
+        description: Seconds of fuzzing per target (fuzz job)
+        type: string
+        default: "60"
+  schedule:
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  SLG_CASES: "2000"
+
+jobs:
+  forbidden:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Forbidden constructs in production code (03 section 9)
+        run: make forbidden
+      - name: The check detects every forbidden token and tolerates look-alikes
+        run: make scripts-test
+
+  build:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        cxx: [g++, clang++]
+        opt: ["-O0", "-O2"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: |
+          ${{ matrix.cxx }} --version
+          make --version
+      - name: Build with the strict flags, -fno-exceptions and -fno-rtti
+        run: make -j"$(nproc)" all CXX="${{ matrix.cxx }}" OPT="${{ matrix.opt }}"
+      - name: Tests
+        run: make test CXX="${{ matrix.cxx }}" OPT="${{ matrix.opt }}"
+      - name: Digest of this cell
+        run: |
+          build/slg_selfcheck | tee selfcheck.txt
+          {
+            echo "### ${{ matrix.cxx }} ${{ matrix.opt }}"
+            grep -E '^(digest|result) ' selfcheck.txt
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  sanitize:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        cxx: [g++, clang++]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: ASan and UBSan, halting on the first report
+        run: make -j"$(nproc)" test-asan CXX="${{ matrix.cxx }}"
+
+  oracle:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Oracle unit tests
+        working-directory: tools/oracle
+        run: python3 -I -m unittest
+      - name: Golden files against what the oracle emits now (no C++ build needed)
+        run: make golden-oracle
+      - name: Golden traces through the C++ golden tests (a skipped or missing one fails)
+        run: make -j"$(nproc)" golden
+
+  digest:
+    if: github.event_name != 'schedule'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The same digest from every compiler and optimisation level
+        run: |
+          # The matrix cells above print theirs too; comparing across cells would need artifacts,
+          # and checkout is the only action this workflow may use, so the cells run here in a loop.
+          first=""
+          status=0
+          for cxx in g++ clang++; do
+            for opt in -O0 -O2; do
+              if ! out="$(make -s selfcheck CXX="$cxx" OPT="$opt" 2>&1)"; then
+                echo "$out"
+                echo "::error::selfcheck failed with $cxx $opt"
+                status=1
+                continue
+              fi
+              echo "$out"
+              digest="$(grep '^digest ' <<<"$out")"
+              echo "== $cxx $opt -> $digest"
+              [ -n "$digest" ] || { echo "::error::no digest from $cxx $opt"; status=1; }
+              if [ -z "$first" ]; then first="$digest"; fi
+              if [ "$digest" != "$first" ]; then echo "::error::digest differs from the first cell ($first)"; status=1; fi
+            done
+          done
+          exit "$status"
+
+  mutation:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Every mutant must make its named tests fail
+        env:
+          JOBS: "2"
+        run: make mutants CXX=g++
+
+  fuzz:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      FUZZ_SECONDS: ${{ github.event_name == 'workflow_dispatch' && inputs.fuzz_seconds || '900' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: clang with the libFuzzer runtime (fails loudly when it is unusable)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang
+          version="$(clang++ -dumpversion | cut -d. -f1)"
+          sudo apt-get install -y --no-install-recommends "libclang-rt-${version}-dev"
+          printf 'extern "C" int LLVMFuzzerTestOneInput(const unsigned char*, unsigned long) { return 0; }\n' > "$RUNNER_TEMP/probe.cpp"
+          clang++ -fsanitize=fuzzer "$RUNNER_TEMP/probe.cpp" -o "$RUNNER_TEMP/probe"
+      - name: libFuzzer targets with ASan and UBSan
+        run: make fuzz FUZZ_CXX=clang++ FUZZ_SECONDS="$FUZZ_SECONDS"
+
+  bench:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Benchmark (counters are deterministic, timings are informational)
+        env:
+          SLG_BENCH_BIG: "1"
+        run: |
+          make -j"$(nproc)" bench | tee bench.txt
+          {
+            echo '### slg_bench'
+            echo '```'
+            cat bench.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

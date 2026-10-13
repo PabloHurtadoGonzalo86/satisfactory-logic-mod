@@ -1,0 +1,13 @@
+# kills: T5
+# M04: La veracidad es x > 1 en lugar de x > 0 (entradas de Gate)
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -193,7 +193,7 @@
+       case Kind::Gate: {
+         unsigned truthy = 0;
+         for (unsigned j = 0; j < slot.inputs; ++j) {
+-          if (nets[pinNet[pins + j]] > 0) ++truthy;
++          if (nets[pinNet[pins + j]] > 1) ++truthy;
+         }
+         bool gate = false;
+         switch (static_cast<GateOp>(slot.mode)) {

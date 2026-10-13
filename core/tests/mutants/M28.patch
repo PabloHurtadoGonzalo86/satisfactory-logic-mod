@@ -1,0 +1,13 @@
+# kills: T5, G10
+# M28: La salida del Clock es alta H - 1 ticks (umbral > en lugar de >=)
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -169,7 +169,7 @@
+         out = cur[slot.stateOffset];
+         break;
+       case Kind::Clock:
+-        out = static_cast<int>(loadU16(cur + slot.stateOffset)) >= static_cast<int>(slot.p0) - static_cast<int>(slot.p1)
++        out = static_cast<int>(loadU16(cur + slot.stateOffset)) > static_cast<int>(slot.p0) - static_cast<int>(slot.p1)
+                   ? Signal{15}
+                   : Signal{0};
+         break;

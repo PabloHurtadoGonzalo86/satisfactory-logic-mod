@@ -1,0 +1,13 @@
+# kills: T5, T11, T12
+# M27: Una longitud de Delay por encima de su tope y del rango del catálogo da BadSpec en vez de LimitExceeded (la lectura antigua de classifyUpper, B2)
+--- a/core/src/internal/spec_rules.cpp
++++ b/core/src/internal/spec_rules.cpp
+@@ -52,7 +52,7 @@
+       return spec.p2 > limits.maxArity ? Status::LimitExceeded : Status::Ok;
+     case Kind::Delay:
+       if (spec.p1 != 0 || spec.p2 != 0 || spec.p0 == 0) return Status::BadSpec;
+-      return spec.p0 > limits.maxDelay ? Status::LimitExceeded : Status::Ok;
++      return spec.p0 > limits.maxDelay ? (spec.p0 > 255 ? Status::BadSpec : Status::LimitExceeded) : Status::Ok;
+     case Kind::Compare:
+       if (spec.p1 != 0 || spec.p2 != 0 || spec.p0 > static_cast<std::uint16_t>(CompareMode::Subtract)) {
+         return Status::BadSpec;

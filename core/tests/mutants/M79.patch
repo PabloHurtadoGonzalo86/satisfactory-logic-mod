@@ -1,0 +1,13 @@
+# kills: T13
+# M79: La espera de un sensor sin lectura se redondea hacia abajo en vez de hacia arriba (floor y no ceil de resolveTimeoutMicros / paso)
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -78,7 +78,7 @@
+ 
+ std::uint64_t FrameDriver::timeoutSteps() const noexcept {
+   const std::uint64_t step = effectiveStepMicros(sim_->hostStepMicros());
+-  return (std::uint64_t{options_.resolveTimeoutMicros} + step - 1) / step;
++  return std::uint64_t{options_.resolveTimeoutMicros} / step;
+ }
+ 
+ void FrameDriver::armHold(const std::vector<std::uint8_t>& marks) {

@@ -1,0 +1,12 @@
+# kills: G9, T11
+# M10: Un Toggle se rearma (p <- 1) con cualquier lote que sobrevive, así que cablearlo después no es un flanco
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -116,6 +116,7 @@
+       const detail::Slot& old = slots_[oldAt];
+       std::copy(state_.begin() + old.stateOffset, state_.begin() + old.stateOffset + old.stateSize,
+                 newState.begin() + static_cast<std::ptrdiff_t>(at));
++      if (spec.kind == Kind::Toggle) newState[at + 1] = 1;
+     } else {
+       const std::uint16_t seed = isFresh ? fresh[freshAt].seed : restSeed(spec);
+       internal::writeInitialState(spec, seed, std::span<std::uint8_t>(newState).subspan(at, size));

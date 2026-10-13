@@ -1,0 +1,13 @@
+# kills: T1, G5
+# M01: Actualización en sitio: cada Gate escribe su salida nueva en su red durante la fase C, así que los componentes posteriores del mismo tick la leen (el estado sigue en doble búfer, las redes no)
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -207,7 +207,7 @@
+             gate = (truthy & 1u) != 0;
+             break;
+         }
+-        nxt[at] = gate != (slot.invert != 0) ? std::uint8_t{15} : std::uint8_t{0};
++        nxt[at] = nets[pinNet[pins + slot.inputs]] = gate != (slot.invert != 0) ? std::uint8_t{15} : std::uint8_t{0};
+         break;
+       }
+       case Kind::Delay: {

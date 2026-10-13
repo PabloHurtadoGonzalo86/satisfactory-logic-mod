@@ -1,0 +1,13 @@
+# kills: T4, G3
+# M05: Delay(d) se comporta como Delay(d-1) para d >= 2 (d+1 no cabe en una línea sin ampliar el estado)
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -211,7 +211,7 @@
+         break;
+       }
+       case Kind::Delay: {
+-        const std::uint32_t length = slot.p0;
++        const std::uint32_t length = slot.p0 > 1 ? slot.p0 - 1U : 1U;
+         std::copy(cur + at + 1, cur + at + length, nxt + at);
+         nxt[at + length - 1] = nets[pinNet[pins]];
+         break;

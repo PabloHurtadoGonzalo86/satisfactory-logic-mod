@@ -1,0 +1,13 @@
+# kills: T10, T12
+# M15: El FIFO de Delay se guarda al revés solo en encode (la ida y vuelta se rompe)
+--- a/core/src/simulator_codec.cpp
++++ b/core/src/simulator_codec.cpp
+@@ -44,7 +44,7 @@
+     out.u16(spec.p0);
+     out.u16(spec.p1);
+     out.u16(spec.p2);
+-    for (std::uint32_t k = 0; k < slot.stateSize; ++k) out.u8(state_[slot.stateOffset + k]);
++    for (std::uint32_t k = 0; k < slot.stateSize; ++k) out.u8(state_[slot.stateOffset + (spec.kind == Kind::Delay ? slot.stateSize - 1 - k : k)]);
+   }
+   for (const Wire& wire : wires) {
+     out.u32(wire.a.component);

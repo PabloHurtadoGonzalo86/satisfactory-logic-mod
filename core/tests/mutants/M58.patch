@@ -1,0 +1,13 @@
+# kills: T7
+# M58: El lint informa de una red con varios conductores solo a partir de tres
+--- a/core/src/lint.cpp
++++ b/core/src/lint.cpp
+@@ -192,7 +192,7 @@
+     for (std::uint8_t j = 0; j < g.table.inputs[slot]; ++j) {
+       const std::uint32_t net = g.nets.pinNet[g.table.pin(slot, j)];
+       if (g.driverCount[net] == 0) report.undrivenInputs.push_back(Pin{id, j});
+-      if (g.driverCount[net] >= 2) {
++      if (g.driverCount[net] > 2) {
+         if (reportOfNet[net] == kNone) {
+           reportOfNet[net] = static_cast<std::uint32_t>(report.multiDriverNets.size());
+           report.multiDriverNets.emplace_back();

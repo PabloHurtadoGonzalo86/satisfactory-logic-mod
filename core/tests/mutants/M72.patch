@@ -1,0 +1,13 @@
+# kills: T5, T11, T12
+# M72: El tope del periodo del Clock se juzga después del ancho H (H inválida con un periodo por encima del tope da BadSpec)
+--- a/core/src/internal/spec_rules.cpp
++++ b/core/src/internal/spec_rules.cpp
+@@ -61,7 +61,7 @@
+     case Kind::Clock:
+       // 01 section 7: over its cap the period is LimitExceeded even when the high width is invalid as well.
+       if (spec.p0 < 2 || spec.p2 != 0) return Status::BadSpec;
+-      if (spec.p0 > limits.maxClockPeriod) return Status::LimitExceeded;
++      if (spec.p0 > limits.maxClockPeriod && spec.p1 >= 1 && spec.p1 < spec.p0) return Status::LimitExceeded;
+       return (spec.p1 < 1 || spec.p1 >= spec.p0) ? Status::BadSpec : Status::Ok;
+   }
+   return Status::BadSpec;

@@ -1,0 +1,13 @@
+# kills: T11
+# M63: Un lote vacío tomado antes de que nextId avanzara no es StaleBatch
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -91,7 +91,7 @@
+ }
+ 
+ Status Simulator::apply(const EditBatch& batch) {
+-  if (batch.empty()) return batch.baseNextId() == netlist_.nextId() ? Status::Ok : Status::StaleBatch;
++  if (batch.empty()) return Status::Ok;
+ 
+   Netlist candidate(netlist_.limits());
+   std::vector<Netlist::Fresh> fresh;

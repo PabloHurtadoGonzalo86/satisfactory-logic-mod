@@ -1,0 +1,13 @@
+# kills: T3, T7, T13
+# M59: settlingBounds no trata un Toggle como memoria
+--- a/core/src/lint.cpp
++++ b/core/src/lint.cpp
+@@ -164,7 +164,7 @@
+   return 0;
+ }
+ 
+-bool holdsMemory(Kind kind) noexcept { return kind == Kind::Latch || kind == Kind::Toggle || kind == Kind::Clock; }
++bool holdsMemory(Kind kind) noexcept { return kind == Kind::Latch || kind == Kind::Clock; }
+ 
+ }  // namespace
+ 

@@ -1,0 +1,13 @@
+# kills: T4, T5, G3
+# M19: Delay escribe el valor nuevo en la primera ranura en lugar de la última (orden del FIFO)
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -213,7 +213,7 @@
+       case Kind::Delay: {
+         const std::uint32_t length = slot.p0;
+         std::copy(cur + at + 1, cur + at + length, nxt + at);
+-        nxt[at + length - 1] = nets[pinNet[pins]];
++        nxt[at] = nets[pinNet[pins]];
+         break;
+       }
+       case Kind::Compare: {

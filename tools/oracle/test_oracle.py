@@ -863,6 +863,43 @@ class EditTests(unittest.TestCase):
         self.assertEqual(sim.apply(again), Status.Ok)
         self.assertIn(10, sim.world.specs)
 
+    def test_add_takes_the_base_id_plus_the_adds_before_it(self):
+        # 02 seccion 2: un id explicito no mueve el contador de add(); si choca, es DuplicateId o RetiredId al aplicar.
+        sim = oracle.Simulator()
+        batch = sim.new_batch()
+        batch.add_with_id(1, oracle.make_latch(), 0)
+        batch.add(oracle.make_latch(), 0)
+        before = sim.encode()
+        self.assertEqual(sim.apply(batch), Status.DuplicateId)
+        self.assertEqual(sim.encode(), before)
+        batch = sim.new_batch()
+        batch.add_with_id(1, oracle.make_latch(), 0)
+        batch.remove(1)
+        batch.add(oracle.make_latch(), 0)
+        self.assertEqual(sim.apply(batch), Status.RetiredId)
+        batch = sim.new_batch()
+        batch.add(oracle.make_latch(), 0)
+        batch.add_with_id(5, oracle.make_latch(), 0)
+        batch.add(oracle.make_latch(), 0)
+        self.assertEqual(sim.apply(batch), Status.Ok)
+        self.assertEqual(sorted(sim.world.specs), [1, 2, 5])
+        self.assertEqual(sim.next_id, 6)
+
+    def test_add_with_the_id_space_exhausted_is_limit_exceeded_at_the_first_id_that_does_not_exist(self):
+        sim = oracle.Simulator()
+        sim.world.next_id = 0xFFFFFFFE
+        batch = sim.new_batch()
+        batch.add(oracle.make_latch(), 0)
+        self.assertEqual(sim.apply(batch), Status.Ok)
+        self.assertEqual(sim.next_id, 0xFFFFFFFF)
+        sim.world.next_id = 0xFFFFFFFE
+        sim.world.specs.clear()
+        sim.world.states.clear()
+        batch = sim.new_batch()
+        batch.add(oracle.make_latch(), 0)
+        batch.add(oracle.make_latch(), 0)
+        self.assertEqual(sim.apply(batch), Status.LimitExceeded)
+
     def test_replace_keeps_id_and_wires_and_resets_state(self):
         self.sim.step([15])
         self.sim.step([15])

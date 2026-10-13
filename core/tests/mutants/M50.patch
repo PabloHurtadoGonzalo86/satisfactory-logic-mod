@@ -1,0 +1,13 @@
+# kills: T13
+# M50: StepPacer fija maxStepsPerCall = 0 a 0 en lugar de 1
+--- a/core/src/host/step_pacer.cpp
++++ b/core/src/host/step_pacer.cpp
+@@ -3,7 +3,7 @@
+ namespace slg::host {
+ 
+ StepPacer::StepPacer(std::uint32_t stepMicros, std::uint32_t maxStepsPerCall) noexcept
+-    : stepMicros_(stepMicros == 0 ? 1 : stepMicros), maxSteps_(maxStepsPerCall == 0 ? 1 : maxStepsPerCall) {}
++    : stepMicros_(stepMicros == 0 ? 1 : stepMicros), maxSteps_(maxStepsPerCall == 0 ? 0 : maxStepsPerCall) {}
+ 
+ std::uint32_t StepPacer::advance(std::uint32_t elapsedMicros, bool paused) noexcept {
+   if (paused) {

@@ -1,0 +1,13 @@
+# kills: T13
+# M92: El decode del driver no compara el stateHash del Simulator
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -297,7 +297,7 @@
+   if (sensorCount != sim_->sensorIds().size() || actuatorCount != sim_->actuatorIds().size()) {
+     return Status::FormatCorrupt;
+   }
+-  if (tick != sim_->tick() || stateHash != sim_->stateHash() || structureHash != sim_->netlist().structureHash()) {
++  if (tick != sim_->tick() || structureHash != sim_->netlist().structureHash()) {
+     return Status::FormatCorrupt;
+   }
+ 

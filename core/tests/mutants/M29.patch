@@ -1,0 +1,13 @@
+# kills: T5
+# M29: Clock da la vuelta con fase >= P en lugar de == P (equivalente mientras c < P)
+--- a/core/src/simulator.cpp
++++ b/core/src/simulator.cpp
+@@ -243,7 +243,7 @@
+       }
+       case Kind::Clock: {
+         const unsigned phase = loadU16(cur + at) + 1;
+-        storeU16(nxt + at, phase == slot.p0 ? 0u : phase);
++        storeU16(nxt + at, phase >= slot.p0 ? 0u : phase);
+         break;
+       }
+     }

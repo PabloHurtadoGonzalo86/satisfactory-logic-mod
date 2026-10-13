@@ -1,0 +1,13 @@
+# kills: T12
+# M65: decode rechaza el blob legal más corto (exactamente cabecera + cola: una netlist vacía)
+--- a/core/src/simulator_codec.cpp
++++ b/core/src/simulator_codec.cpp
+@@ -76,7 +76,7 @@
+     if (formatVersion > kFormatVersion || semanticsVersion > kSemanticsVersion) return Status::FormatTooNew;
+     if (formatVersion != kFormatVersion || semanticsVersion != kSemanticsVersion) return Status::FormatCorrupt;
+   }
+-  if (bytes.size() < kHeaderBytes + kTailBytes) return Status::FormatCorrupt;
++  if (bytes.size() <= kHeaderBytes + kTailBytes) return Status::FormatCorrupt;
+ 
+   const auto body = bytes.first(bytes.size() - kTailBytes);
+   {

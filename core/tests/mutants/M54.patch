@@ -1,0 +1,13 @@
+# kills: T13, G11
+# M54: Un sensor Pulse repite su lectura en todos los pasos de una llamada
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -176,7 +176,7 @@
+       if (sensor.mode == SensorMode::Level) {
+         samples_[i] = (first && sensor.pendingValue > kMaxSignal) ? sensor.pendingValue : sensor.retained;
+       } else {
+-        samples_[i] = first ? sensor.pendingValue : Signal{0};
++        samples_[i] = sensor.pending ? sensor.pendingValue : Signal{0};
+       }
+     }
+     const Status status = sim_->step(samples_);

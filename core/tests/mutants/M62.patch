@@ -1,0 +1,13 @@
+# kills: T11
+# M62: connect (y disconnect) aceptan un cable de un pin a sí mismo
+--- a/core/src/netlist.cpp
++++ b/core/src/netlist.cpp
+@@ -136,7 +136,7 @@
+     if (status != Status::Ok) return status;
+     status = resolvePin(b);
+     if (status != Status::Ok) return status;
+-    return a == b ? Status::BadPin : Status::Ok;
++    return Status::Ok;
+   };
+ 
+   for (const EditBatch::Op& op : batch.ops_) {

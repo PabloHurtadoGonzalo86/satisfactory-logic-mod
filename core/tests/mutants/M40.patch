@@ -1,0 +1,13 @@
+# kills: T11
+# M40: apply rechaza una red con exactamente maxNetPins pines
+--- a/core/src/netlist.cpp
++++ b/core/src/netlist.cpp
+@@ -228,7 +228,7 @@
+     const internal::PinTable table = internal::buildPinTable(out.components_);
+     const internal::Nets nets = internal::buildNets(table, out.components_, out.wires_);
+     for (const std::uint32_t pins : nets.pinsInNet) {
+-      if (pins > limits_.maxNetPins) return Status::LimitExceeded;
++      if (pins >= limits_.maxNetPins) return Status::LimitExceeded;
+     }
+   }
+ 

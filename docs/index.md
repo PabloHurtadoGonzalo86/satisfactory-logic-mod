@@ -7,7 +7,7 @@ avance del proyecto.
 
 !!! warning "Estado: borrador de trabajo"
     El mod todavía no existe: hoy hay teoría verificada, una especificación completa del núcleo y la
-    investigación que la respalda. El núcleo del simulador (C++ sin Unreal) está en construcción y el adaptador
+    investigación que la respalda. El núcleo del simulador (C++ sin Unreal) está implementado y en revisión, y el adaptador
     de Unreal vendrá después. Nada de esto está publicado en ficsit.app.
 
 ## Por dónde empezar

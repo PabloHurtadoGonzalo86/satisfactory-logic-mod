@@ -1,0 +1,13 @@
+# kills: T13
+# M51: Un sensor Level sin lectura nueva alimenta 0 en lugar del último valor bueno
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -174,7 +174,7 @@
+       const SensorState& sensor = sensors_[i];
+       const bool first = step == 0 && sensor.pending;
+       if (sensor.mode == SensorMode::Level) {
+-        samples_[i] = (first && sensor.pendingValue > kMaxSignal) ? sensor.pendingValue : sensor.retained;
++        samples_[i] = (first && sensor.pendingValue > kMaxSignal) ? sensor.pendingValue : (sensor.pending ? sensor.retained : Signal{0});
+       } else {
+         samples_[i] = first ? sensor.pendingValue : Signal{0};
+       }

@@ -1,0 +1,13 @@
+# kills: T13
+# M53: El tiempo de espera de resolución exige estrictamente más pasos ejecutados que ceil(resolveTimeoutMicros / paso)
+--- a/core/src/host/frame_driver.cpp
++++ b/core/src/host/frame_driver.cpp
+@@ -155,7 +155,7 @@
+       resolves = sensor.unresolved;
+     } else if (sensor.unresolved) {
+       sensor.waitedSteps += steps;
+-      resolves = sensor.waitedSteps >= limit;
++      resolves = sensor.waitedSteps > limit;
+     }
+     if (resolves) {
+       sensor.unresolved = false;

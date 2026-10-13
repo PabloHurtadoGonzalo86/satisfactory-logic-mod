@@ -1,0 +1,13 @@
+# kills: T12
+# M39: decode rechaza una red con exactamente maxNetPins pines
+--- a/core/src/simulator_codec.cpp
++++ b/core/src/simulator_codec.cpp
+@@ -163,7 +163,7 @@
+     const internal::PinTable table = internal::buildPinTable(comps);
+     const internal::Nets nets = internal::buildNets(table, comps, wires);
+     for (const std::uint32_t pins : nets.pinsInNet) {
+-      if (pins > limits.maxNetPins) return Status::LimitExceeded;
++      if (pins >= limits.maxNetPins) return Status::LimitExceeded;
+     }
+   }
+ 
