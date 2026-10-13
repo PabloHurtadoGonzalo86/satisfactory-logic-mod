@@ -31,6 +31,8 @@ Estado: borrador de diseño del 13-oct-2026. Estados: **por defecto, revisable**
 | D23 | Texto público: "diseño desde cero" (README, 0001 §4), no "clean-room" | abierta, decide el propietario | critic: no lo puede reclamar quien leyó el código | "clean-room" tal cual | reclamación falsa |
 | D24 | Muestra > 15 se satura y se cuenta; marco erróneo da `BadFrame` (I8) | por defecto, revisable | un fallo del adaptador no detiene la lógica | error siempre | un valor erróneo pasa |
 | D25 | Oráculo Python por otro agente, mutantes como parches (03 §5, §7) | por defecto, revisable | N-versión | tests del mismo autor | coste de proceso |
+| D26 | Formato de texto de los goldens fijado por el oráculo: `ticks n` da `n + 1` filas, valores decimales, huella en 16 hex mayúsculas, las cuatro secciones de la fila siempre (03 §4) | por defecto, revisable | el texto no lo fijaba y `slg_run` y el oráculo se comparan con `cmp` | `n` filas; hex en minúsculas; omitir secciones vacías | regenerar todos los goldens |
+| D27 | Un lote se juzga como un todo: ids explícitos contra la base del lote y en cualquier orden; límites sobre la netlist final, salvo `add` con `nextId` agotado (02 §4, §5) | por defecto, revisable | T1 reconstruye insertando en cualquier orden y D12 hace el lote atómico | ids explícitos contra el `nextId` corriente y ascendentes; límites tras cada operación | un lote que rebasa un tope a medias vale si lo repara después |
 
 ## 2. Conflictos entre propuestas
 
@@ -66,3 +68,39 @@ Estado: borrador de diseño del 13-oct-2026. Estados: **por defecto, revisable**
 ## 4. Para revisar por el propietario
 
 Abiertas, con valor por defecto ya aplicado: D04, D09, D13, D16 y D23. Conviene confirmar también D01, D03, D05, D07 y D15. Para el spike en su PC: la lista de 02 §8 y las gracias de 5 s y 10 s del adaptador.
+
+## 5. Resolución de las ambigüedades del oráculo
+
+Estado de los 29 puntos de [ambiguities.md](ambiguities.md) (A1 a A11 formato de texto, B1 a B10 semántica, C1 a C8 errores del texto). «Pendiente de arbitraje» es un punto en el que el oráculo y la implementación C++ leen el texto de forma distinta: el texto de 01 a 03 lo marca con «Pendiente de arbitraje (ver ambiguities.md Bn)» y las dos lecturas se describen en [ambiguities.md](ambiguities.md). Las demás están resueltas en el texto citado.
+
+| Id | Resuelta en | Qué fija |
+|---|---|---|
+| A1 | 03 §4 (contrato, `ticks n`) | `n` pasos, `n + 1` filas |
+| A2 | 03 §4 (contrato, fila) | una línea, separador de secciones literal, cuatro secciones siempre |
+| A3 | 03 §4 (contrato, valores) | valores en decimal |
+| A4 | 03 §4 (contrato, valores) | huella en 16 hexadecimales mayúsculas |
+| A5 | 03 §4 (contrato, qué lista cada sección) | componentes y notación de `st`, `in` y `cmd` |
+| A6 | 03 §4 (contrato, `in` y `cmd`) | muestra retenida sin saturar; `i` inválida es un error de entrada |
+| A7 | 03 §4 (contrato, `c <id> <kind>`) | claves por kind, defectos y `seed` ausente |
+| A8 | 03 §4 (contrato, pines) | cualquier orden, el núcleo normaliza |
+| A9 | 03 §4 (contrato, líneas `e`) | una operación por línea, un lote atómico por `τ`, id explícito en `add c` |
+| A10 | 03 §4 (contrato, netlist inicial); 02 §4 | `nextId = max(id) + 1` tras cargar |
+| A11 | 03 §4 (contrato, ficheros y blobs) | sin comentarios; `hostStepMicros` y `tick` son argumentos de la herramienta |
+| B1 | 01 §6.1 (tabla de seeds) | `Const` y `Sensor` solo admiten seed 0 |
+| B2 | pendiente de arbitraje (marcador en 01 §7) | `BadSpec` o `LimitExceeded` ante un parámetro por encima del rango o del tope |
+| B3 | 02 §4 (ids explícitos); D27 | ids contra la base del lote, `DuplicateId` frente a `RetiredId`, `nextId` tras el lote |
+| B4 | pendiente de arbitraje (marcador en 02 §5) | orden de los estados de un lote inválido; validación de pines en `disconnect` |
+| B5 | 02 §5; D27 | límites sobre la netlist final; excepción de `add` con `nextId` agotado |
+| B6 | 01 §6.1; 02 §4; 03 §4 (contrato, `c <id> <kind>`) | `replace` sin seed usa el reposo del `Spec` nuevo; `Toggle` vuelve a `p = 1` |
+| B7 | 02 §6.3; 03 §2 (T12) | `nextId` ≥ 1, ids ≤ `0xFFFFFFFE`, versiones ≥ 1 |
+| B8 | pendiente de arbitraje (marcador en 02 §6.3) | orden de las comprobaciones de límites al decodificar |
+| B9 | pendiente de arbitraje (marcador en 02 §7.2) | semántica del sensor `Pulse` en tres llamadas de un paso |
+| B10 | 01 §2.4; 03 §4 (contrato, `in` y `cmd`) | `cmd` de la fila `τ` es `o` en `X_τ` |
+| C1 | 03 §4 (tabla, fila `all_kinds`); 03 §7 (M13) | M13 lo mata el blob `all_kinds`; G7 no tiene `Delay` |
+| C2 | 03 §4 (tabla, G14) | `mergeloop` y `mergeloop_e9` |
+| C3 | 01 §5 | el mando de `C` es 15 en `X1` (lo lee en `X0`); la red ya vale 9 |
+| C4 | 03 §4 (contrato, anfitrión; tabla, G11 y G12) | formatos `lburst` y `lpacer` en `core/golden/README.md` |
+| C5 | 02 §6.5 | goldens planos en `core/golden/` hasta `semanticsVersion = 2` |
+| C6 | 03 §4 (tabla, G7) | `lat_not.slgc` |
+| C7 | 03 §4 (tabla, G10) | el actuador de `clock6_3` muestra la onda un tick después |
+| C8 | 03 §5 | el oráculo parte de 01, 02 y 03 |

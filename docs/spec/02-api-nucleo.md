@@ -120,14 +120,15 @@ class FrameDriver {
 
 ## 4. Ids y edificios
 
-- El núcleo asigna ids monótonos desde `nextId`; un lote con otra base da `StaleBatch`; con `nextId = 0xFFFFFFFF`, `add` da `LimitExceeded`. `remove` retira el id (`remove` + `add` del mismo id es `RetiredId`). Cambiar un parámetro es `replace`: conserva id y cables (si un pin cableado deja de existir, el lote falla con `BadPin`) y reinicia el estado al seed, así no se redimensionan FIFOs con pulsos en vuelo.
+- El núcleo asigna ids monótonos desde `nextId`; un lote con otra base da `StaleBatch`; con `nextId = 0xFFFFFFFF`, `add` da `LimitExceeded`. `remove` retira el id (`remove` + `add` del mismo id es `RetiredId`). Cambiar un parámetro es `replace`: conserva id y cables (si un pin cableado deja de existir, el lote falla con `BadPin`) y reinicia el estado al seed (sin seed explícito, el de reposo del `Spec` **nuevo**; un `Toggle` vuelve a `p = 1`), así no se redimensionan FIFOs con pulsos en vuelo.
+- **Ids explícitos** (`addWithId`: decodificación, `lnet`, reconstrucciones y tests; el `>= nextId` del comentario de §2 se entiende contra la base del lote). Se juzgan contra el `nextId` del **inicio del lote** (`EditBatch::base`), no contra el que va quedando, y pueden venir en cualquier orden dentro del lote (T1 reconstruye "insertando en cualquier orden con los mismos ids"). Un id presente en la netlist o añadido antes en el mismo lote es `DuplicateId`; si no, uno menor que la base y ausente (el 0 incluido), o quitado en el mismo lote, es `RetiredId`; `0xFFFFFFFF` o más es `LimitExceeded`. Tras el lote, `nextId = max(base, mayor id añadido + 1)`, contando los ids añadidos aunque se quiten en el mismo lote (I5).
 - **Adaptador [P]**: cada edificio lógico guarda un `uint32 LogicComponentId` como propiedad SaveGame (runtime-api C17); es una **pista** y manda el blob. La tabla `id → edificio` vive en memoria con referencias débiles (ningún puntero crudo entre cargas, critic "Teardown").
 - **Tras cargar**: un edificio con un id desconocido o ya reclamado (un blueprint pegado duplica la propiedad) pide un componente nuevo. Un componente sin edificio es un huérfano y **no se borra de inmediato** (el orden de carga y `BeginPlay` no está verificado): se borra tras una gracia en tiempo del adaptador (suma de dt; 10 s [P]), no en pasos del núcleo, que en pausa no avanzan.
 - Los enlaces a objetos vanilla son del adaptador, con su propio entero de versión; los ids y punteros de circuito de vanilla no se cachean (runtime-api C11). La clave estable del edificio queda para el spike.
 
 ## 5. Ediciones en vivo
 
-Un `EditBatch` se valida entero sobre una copia y solo si todas sus operaciones valen sustituye al original. Las operaciones valen en orden (`connect` y luego `remove` del mismo componente vale; al revés, no). Los supervivientes conservan su estado bit a bit (T11); `add` y `replace` nacen en su seed; `connect` y `disconnect` unen o dividen redes con efecto en el siguiente tick; `remove` saca su salida de las redes sin fantasma; no hay rearme de flancos (01 §6.2).
+Un `EditBatch` se valida entero sobre una copia y solo si todas sus operaciones valen sustituye al original. Las operaciones valen en orden (`connect` y luego `remove` del mismo componente vale; al revés, no). Qué `Status` devuelve un lote con varias operaciones inválidas o una operación con varios defectos a la vez (componente inexistente, pin inexistente, cable duplicado o inexistente), y si `disconnect` valida los pines como `connect` cuando el cable nombra un componente o un pin que no existen: **Pendiente de arbitraje (ver ambiguities.md B4)**. Los límites de componentes, cables, ranuras de `Delay` y pines por red (01 §7) se juzgan sobre la netlist **final** del lote, no tras cada operación: un lote que rebasa un tope y lo repara con una operación posterior vale; `maxNetPins` cuenta los pines distintos de una red que aparecen en algún cable. Única excepción: `add` con `nextId = 0xFFFFFFFF` da `LimitExceeded` en el momento (§4). Los supervivientes conservan su estado bit a bit (T11); `add` y `replace` nacen en su seed; `connect` y `disconnect` unen o dividen redes con efecto en el siguiente tick; `remove` saca su salida de las redes sin fantasma; no hay rearme de flancos (01 §6.2).
 
 Solo en el **límite de tick**, nunca dentro de `step`; un lote se registra como `(τ, lote)`. Si el adaptador deriva las redes de los circuitos de vanilla (wires, opción A), solo puede entregar cambios entre llamadas: el orden en que el motor los reconstruye decide en qué llamada llega el lote y nunca entra en `F` (critic, "Architecture source of truth").
 
@@ -150,7 +151,7 @@ FNV-1a de 64 bits: base `0xcbf29ce484222325`, primo `0x100000001b3` (no criptogr
 
 ### 6.3 Decodificación estricta y total
 
-`decode` construye un `Simulator` nuevo y el adaptador lo adopta solo con `Ok`. Orden: magia; versiones (mayor que la soportada: `FormatTooNew` sin mirar más); cola; lectura secuencial con los bytes restantes comprobados en cada campo y los conteos ≤ límites **y** ≤ bytes restantes antes de reservar memoria; ids ascendentes y `nextId` mayor que todos; parámetros válidos (los no usados a 0); estados en su dominio; cables normalizados, ascendentes y con ambos pines existentes; ni un byte de más. Un fallo es `FormatCorrupt` (`LimitExceeded` si un conteo excede un límite). Sustituir un solo byte siempre cambia la cola (cada paso de FNV-1a es biyectivo).
+`decode` construye un `Simulator` nuevo y el adaptador lo adopta solo con `Ok`. Orden: magia; versiones (mayor que la soportada: `FormatTooNew` sin mirar más; menor que 1 en cualquiera de los dos campos: `FormatCorrupt`, porque no hay migración desde v0, §6.5); cola; lectura secuencial con los bytes restantes comprobados en cada campo y los conteos ≤ límites **y** ≤ bytes restantes antes de reservar memoria; ids ascendentes y ≤ `0xFFFFFFFE`; `nextId` ≥ 1 y mayor que todos los ids (el vacío válido tiene `nextId = 1`); parámetros válidos (los no usados a 0); estados en su dominio; cables normalizados, ascendentes y con ambos pines existentes; ni un byte de más. Un fallo es `FormatCorrupt` (`LimitExceeded` si un conteo excede un límite). En qué punto de la lectura se comprueban las ranuras de `Delay` y los pines por red, y qué estado da un parámetro por encima de su tope (01 §7): **Pendiente de arbitraje (ver ambiguities.md B8)**. Sustituir un solo byte siempre cambia la cola (cada paso de FNV-1a es biyectivo).
 
 ### 6.4 Ejemplo dorado G1 y G7
 
@@ -168,7 +169,7 @@ La muestra que cambia en `τ = 2` baja el actuador en la fila 4: `W = 2` (01 §2
 
 ### 6.5 Versionado
 
-- `formatVersion` cambia el contenedor; `semanticsVersion` cambia `F` (toda transición, fusión o desempate modificado lo incrementa aunque los bytes no cambien); las trazas doradas viven en un directorio por `semanticsVersion` y los antiguos quedan como fixtures de migración.
+- `formatVersion` cambia el contenedor; `semanticsVersion` cambia `F` (toda transición, fusión o desempate modificado lo incrementa aunque los bytes no cambien); las trazas doradas viven por `semanticsVersion`: con la 1 son planas en `core/golden/`; cuando aparezca la 2, pasan a `core/golden/v<semanticsVersion>/` (los de la 1 a `core/golden/v1/`) y los antiguos quedan como fixtures de migración.
 - Versión más nueva: `FormatTooNew` y **modo congelado** del adaptador (conserva el blob sin tocarlo, no ejecuta lógica, avisa); guardar encima destruiría datos que no sabe leer. Versión más antigua: cadena de funciones puras `vN → vN+1`, cada una con su blob dorado; v0 no tiene ninguna ni secciones opcionales.
 - Los números de versión del guardado y del juego son del juego (runtime-api C17): el adaptador guarda enteros propios.
 - `hostStepMicros` viaja en el mundo: cambiar la configuración reinterpretaría todos los `Delay` y `Clock` construidos; si difiere, manda el guardado y se avisa.
@@ -198,7 +199,7 @@ paso 2: e=(L15,P0)   A1'=15  A2'=0   -> X3=(15,0)
 fin: mandos (15,0) frente a lo confirmado (0,0): changes = { A1: 0→15 }
 ```
 
-El 15 de `A2` en `X1` nunca llega al mundo (un pulso hacia el mundo se alarga con componentes). Con tres llamadas de un paso el estado final es el mismo `X3`, pero el mundo ve subir y bajar `A2` (T13).
+El 15 de `A2` en `X1` nunca llega al mundo (un pulso hacia el mundo se alarga con componentes). Con tres llamadas de un paso el estado final es el mismo `X3`, pero el mundo ve subir y bajar `A2` (T13). Si en esas tres llamadas el sensor `Pulse` se ofrece en cada una o solo en la primera, y por tanto si el estado final coincide con `X3` o difiere: **Pendiente de arbitraje (ver ambiguities.md B9)**.
 
 ### 7.3 Paso, acumulador y descarte
 

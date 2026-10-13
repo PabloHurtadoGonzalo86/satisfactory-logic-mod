@@ -42,7 +42,7 @@ El tick `τ → τ+1` tiene tres fases [F, PR6]:
 
 Las ediciones de la netlist (02 §5) se aplican en el **límite de tick**, antes de la fase 1; no son una fase.
 
-**Convención de filas.** Toda traza muestra en la fila `τ` la muestra `e_τ` y el estado `X_τ` (con las ediciones del límite `τ` ya aplicadas). Es la de theory (theory/06 Paso 1, regla 3; `Circuit` de `check_B.py`; `src` de `check_C.py`), así que sus tablas sirven de goldens sin desplazar filas (T14).
+**Convención de filas.** Toda traza muestra en la fila `τ` la muestra `e_τ`, el estado `X_τ` (con las ediciones del límite `τ` ya aplicadas) y los mandos `o` de los actuadores en `X_τ` (`commands()`, 02 §2), no lo que se entrega al mundo (02 §7.2). Es la de theory (theory/06 Paso 1, regla 3; `Circuit` de `check_B.py`; `src` de `check_C.py`), así que sus tablas sirven de goldens sin desplazar filas (T14).
 
 ### 2.5 Latencia, en filas y en llamadas
 
@@ -90,7 +90,7 @@ La alternativa es la suma saturada `min(15, a+b)`, cuyo único precedente verifi
 
 El **lint** (`analyze`, 02 §2) informa, no rechaza. Trabaja sobre el **grafo inducido por redes**: arista `c → c'` si `(c, out)` está en la misma red que una entrada de `c'`. Informa de grupos de realimentación (SCC con más de un nodo o con autoarista; Tarjan **iterativo**, TH7), de entradas sin conductor (leen 0) y de redes con varios conductores.
 
-Como una red une todos sus lectores con todos sus conductores, **añadir un conductor puede crear un lazo sin cable de vuelta** (G14): sensor `A`, NOT `B`, actuador `C`; cables `out(A)–in(B,0)`, `in(C,0)–out(A)`, `in(C,0)–out(B)`. Los cuatro pines son una sola red: `B' = NOT(max(e, B))`. Con `e = 0` y `B` en reposo (15): `X1.B = NOT(max(0,15)) = 0`, `X2.B = NOT(max(0,0)) = 15`: periodo 2. Con `e = 9`: `X1.B = NOT(max(9,15)) = 0`, `X2.B = NOT(max(9,0)) = 0` para siempre, y `C` lee `max(9, B)`: 15 en `X1`, 9 desde `X2`.
+Como una red une todos sus lectores con todos sus conductores, **añadir un conductor puede crear un lazo sin cable de vuelta** (G14): sensor `A`, NOT `B`, actuador `C`; cables `out(A)–in(B,0)`, `in(C,0)–out(A)`, `in(C,0)–out(B)`. Los cuatro pines son una sola red: `B' = NOT(max(e, B))`. Con `e = 0` y `B` en reposo (15): `X1.B = NOT(max(0,15)) = 0`, `X2.B = NOT(max(0,0)) = 15`: periodo 2. Con `e = 9`: `X1.B = NOT(max(9,15)) = 0`, `X2.B = NOT(max(9,0)) = 0` para siempre. `C` lee `max(9, B)` de la red: su **mando** vale 15 en la fila `X1` (lo lee en `X0`, con `B = 15`) y 9 desde `X2`; la red ya vale 9 en `X1`, porque allí `B = 0`.
 
 ## 6. Memoria y estado inicial [P]
 
@@ -98,10 +98,11 @@ Como una red une todos sus lectores con todos sus conductores, **añadir un cond
 
 ### 6.1 Seed
 
-Un componente creado (construcción, pegado, edición) arranca en su **seed**; uno **cargado** se restaura verbatim. `validate` rechaza (`BadSpec`) todo seed fuera de dominio y todo parámetro no usado distinto de 0.
+Un componente creado (construcción, pegado, edición) arranca en su **seed**; uno **cargado** se restaura verbatim. `replace` también crea: reinicia el componente a su seed, que sin dato explícito es el de reposo del `Spec` **nuevo** (no el del anterior); un `Toggle` vuelve a `p ← 1`. `validate` rechaza (`BadSpec`) todo seed fuera de dominio y todo parámetro no usado distinto de 0.
 
 | Kind | Seed válido | Efecto | Defecto (reposo) |
 |---|---|---|---|
+| `Const`, `Sensor` | {0} | ninguno (sin estado) | 0 |
 | `Gate` | {0,15} | `s ← seed` | 15 si `inv`, si no 0 (salida con todas las entradas a 0) |
 | `Latch` | {0,15} | `q ← seed` | 0 |
 | `Toggle` | {0,15} | `q ← seed` y **`p ← 1`** | 0 |
@@ -122,7 +123,7 @@ Un componente nuevo en reposo puede emitir transitorios. Sensor en 15 → NOT `g
 
 ## 7. Límites, errores y determinismo [P]
 
-Toda operación inválida o que excede un límite **se rechaza entera** con un `Status` (02 §2); nunca se trunca ni se aplica a medias. Sin excepciones ni RTTI (los módulos de Unreal suelen compilarse sin ellas: no verificado, spike). Límites por defecto, provisionales: 8192 componentes, 32768 cables, aridad 8, `maxNetPins` 256 (**fan-in lógico**: pines por red), `Delay` 255 y 65536 ranuras de `Delay` en total, periodo de `Clock` 4096. El **fan-in físico** (vínculos por conector: 1 en el nativo, postes de 4, 7 y 10; wires c10, c11) es del adaptador. Se recalibran con el benchmark sin Unreal ([03](03-pruebas.md) §8).
+Toda operación inválida o que excede un límite **se rechaza entera** con un `Status` (02 §2); nunca se trunca ni se aplica a medias. Sin excepciones ni RTTI (los módulos de Unreal suelen compilarse sin ellas: no verificado, spike). Límites por defecto, provisionales: 8192 componentes, 32768 cables, aridad 8, `maxNetPins` 256 (**fan-in lógico**: pines por red), `Delay` 255 y 65536 ranuras de `Delay` en total, periodo de `Clock` 4096. El **fan-in físico** (vínculos por conector: 1 en el nativo, postes de 4, 7 y 10; wires c10, c11) es del adaptador. Se recalibran con el benchmark sin Unreal ([03](03-pruebas.md) §8). Qué `Status` da un parámetro que supera el rango del catálogo (§3: `k` 1..8, `d` 1..255, `P` 2..4096) o el tope de `Limits` correspondiente, `BadSpec` o `LimitExceeded`: **Pendiente de arbitraje (ver ambiguities.md B2)**.
 
 Determinismo entre plataformas: solo enteros de ancho fijo (`A − B` en `int`, recortado a 0), ni un `float`, ni en el planificador; iteración por id ascendente, nunca contenedores no ordenados, orden por puntero ni `std::hash`; serialización y huellas byte a byte, little-endian; PRNG propio en los tests. Fuera de lo garantizado: el float→nibble del adaptador y el no-determinismo del juego (PR7).
 
