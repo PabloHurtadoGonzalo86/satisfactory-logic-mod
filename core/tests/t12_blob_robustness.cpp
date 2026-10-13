@@ -134,17 +134,16 @@ void exhaustive(Ctx& ctx, const EngineFactory& f, const std::vector<std::uint8_t
     }
   }
   {
-    std::vector<std::uint8_t> longer = fixture;
-    longer.push_back(0x5A);
+    std::vector<std::uint8_t> longer(fixture.size() + 1, 0x5A);
+    std::copy(fixture.begin(), fixture.end(), longer.begin());
     Status got = Status::Ok;
     std::string why = checkDecode(f, v, longer, Limits{}, name, &got);
     SLG_CHECK_MSG(ctx, why.empty() && got != Status::Ok, cat(name, ": one trailing byte: ", why));
     BlobData d;
     if (parseBlob(fixture, d) && fixture.size() >= kBlobTailBytes) {
-      std::vector<std::uint8_t> padded;
-      for (std::size_t i = 0; i + kBlobTailBytes < fixture.size(); ++i) padded.push_back(fixture[i]);
-      padded.push_back(0);
-      for (std::size_t i = 0; i < kBlobTailBytes; ++i) padded.push_back(0);
+      // fixture without its tail, one extra zero byte, then a zeroed tail that refreshTail recomputes
+      std::vector<std::uint8_t> padded(fixture.size() + 1, 0);
+      std::copy(fixture.begin(), fixture.end() - static_cast<std::ptrdiff_t>(kBlobTailBytes), padded.begin());
       refreshTail(padded);
       why = checkDecode(f, v, padded, Limits{}, name, &got);
       SLG_CHECK_MSG(ctx, why.empty() && got == Status::FormatCorrupt, cat(name, ": a byte too many with a valid tail must be FormatCorrupt, got ", statusName(got), " ", why));
