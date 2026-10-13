@@ -98,8 +98,10 @@ Status Simulator::decode(std::span<const std::uint8_t> bytes, const Limits& limi
     return Status::FormatCorrupt;
   }
   if (componentCount > limits.maxComponents || wireCount > limits.maxWires) return Status::LimitExceeded;
-  const std::uint64_t minimumBytes = componentCount * kComponentRecordBytes + wireCount * kWireRecordBytes;
-  if (minimumBytes > r.remaining()) return Status::FormatCorrupt;
+  // Each count is held to the bytes left on its own: a blob that fails later for another reason keeps that reason.
+  if (componentCount * kComponentRecordBytes > r.remaining() || wireCount * kWireRecordBytes > r.remaining()) {
+    return Status::FormatCorrupt;
+  }
 
   std::vector<std::pair<ComponentId, Spec>> comps;
   comps.reserve(componentCount);
@@ -124,10 +126,7 @@ Status Simulator::decode(std::span<const std::uint8_t> bytes, const Limits& limi
     std::span<const std::uint8_t> stateBytes;
     if (!r.take(internal::stateSize(spec), stateBytes)) return Status::FormatCorrupt;
     if (!internal::stateInDomain(spec, stateBytes)) return Status::FormatCorrupt;
-    if (spec.kind == Kind::Delay) {
-      delayCells += spec.p0;
-      if (delayCells > limits.maxDelayCells) return Status::LimitExceeded;
-    }
+    if (spec.kind == Kind::Delay) delayCells += spec.p0;
     state.insert(state.end(), stateBytes.begin(), stateBytes.end());
     comps.emplace_back(id, spec);
     previousId = id;
@@ -159,6 +158,8 @@ Status Simulator::decode(std::span<const std::uint8_t> bytes, const Limits& limi
   }
   if (r.remaining() != 0) return Status::FormatCorrupt;
 
+  // The whole-netlist limits come last (02 section 6.3), after every check that a corrupt blob can fail.
+  if (delayCells > limits.maxDelayCells) return Status::LimitExceeded;
   if (!wires.empty()) {
     const internal::PinTable table = internal::buildPinTable(comps);
     const internal::Nets nets = internal::buildNets(table, comps, wires);

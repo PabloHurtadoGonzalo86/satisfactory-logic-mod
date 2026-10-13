@@ -67,7 +67,7 @@ constexpr Spec makeClock(std::uint16_t period, std::uint16_t high) noexcept {
 // State a component has when every input reads 0 (01 section 6.1, last column).
 std::uint16_t restSeed(const Spec&) noexcept;
 
-// BadSpec for a malformed spec or seed; LimitExceeded when a parameter exceeds `Limits`.
+// BadSpec for a malformed spec or seed; LimitExceeded when arity, Delay length or Clock period exceeds its `Limits` cap.
 Status validate(const Spec&, std::uint16_t seed, const Limits&) noexcept;
 
 }  // namespace slg

@@ -15,7 +15,8 @@ std::uint8_t inputCount(const Spec&) noexcept;
 bool hasOutput(Kind) noexcept;
 bool pinExists(const Spec&, std::uint8_t index) noexcept;
 
-// Parameters only (no seed): BadSpec when malformed, LimitExceeded when over `Limits`.
+// Parameters only (no seed): BadSpec when malformed, LimitExceeded when arity, Delay length or Clock period is over
+// its `Limits` cap (whatever the catalog range says; 01 section 7).
 Status validateParams(const Spec&, const Limits&) noexcept;
 bool seedInDomain(const Spec&, std::uint16_t seed) noexcept;
 

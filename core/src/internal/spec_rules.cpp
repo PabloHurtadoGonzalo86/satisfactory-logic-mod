@@ -3,17 +3,6 @@
 namespace slg::internal {
 namespace {
 
-constexpr std::uint32_t kCatalogArity = 8;
-constexpr std::uint32_t kCatalogDelay = 255;
-constexpr std::uint32_t kCatalogPeriod = 4096;
-
-// Over the configured limit is a limit failure, except past the catalog range at default-or-lower limits,
-// where the value is simply not a legal parameter.
-Status classifyUpper(std::uint32_t value, std::uint32_t limit, std::uint32_t catalog) noexcept {
-  if (value <= limit) return Status::Ok;
-  return (value > catalog && limit <= catalog) ? Status::BadSpec : Status::LimitExceeded;
-}
-
 bool isNibbleMask(std::uint8_t v) noexcept { return v == 0 || v == 15; }
 
 }  // namespace
@@ -60,18 +49,20 @@ Status validateParams(const Spec& spec, const Limits& limits) noexcept {
       return (spec.p0 == 0 && spec.p1 == 0 && spec.p2 == 0) ? Status::Ok : Status::BadSpec;
     case Kind::Gate:
       if (spec.p0 > static_cast<std::uint16_t>(GateOp::Xor) || spec.p1 > 1 || spec.p2 == 0) return Status::BadSpec;
-      return classifyUpper(spec.p2, limits.maxArity, kCatalogArity);
+      return spec.p2 > limits.maxArity ? Status::LimitExceeded : Status::Ok;
     case Kind::Delay:
       if (spec.p1 != 0 || spec.p2 != 0 || spec.p0 == 0) return Status::BadSpec;
-      return classifyUpper(spec.p0, limits.maxDelay, kCatalogDelay);
+      return spec.p0 > limits.maxDelay ? Status::LimitExceeded : Status::Ok;
     case Kind::Compare:
       if (spec.p1 != 0 || spec.p2 != 0 || spec.p0 > static_cast<std::uint16_t>(CompareMode::Subtract)) {
         return Status::BadSpec;
       }
       return Status::Ok;
     case Kind::Clock:
-      if (spec.p2 != 0 || spec.p0 < 2 || spec.p1 < 1 || spec.p1 >= spec.p0) return Status::BadSpec;
-      return classifyUpper(spec.p0, limits.maxClockPeriod, kCatalogPeriod);
+      // 01 section 7: over its cap the period is LimitExceeded even when the high width is invalid as well.
+      if (spec.p0 < 2 || spec.p2 != 0) return Status::BadSpec;
+      if (spec.p0 > limits.maxClockPeriod) return Status::LimitExceeded;
+      return (spec.p1 < 1 || spec.p1 >= spec.p0) ? Status::BadSpec : Status::Ok;
   }
   return Status::BadSpec;
 }

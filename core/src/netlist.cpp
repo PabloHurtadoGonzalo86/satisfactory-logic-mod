@@ -11,10 +11,9 @@ namespace slg {
 
 ComponentId EditBatch::add(Spec spec, std::uint16_t seed) {
   ComponentId id = 0;  // 0 marks an exhausted id space; apply reports LimitExceeded
-  if (next_ < internal::kIdSentinel) {
-    id = static_cast<ComponentId>(next_);
-    ++next_;
-  }
+  const std::uint64_t candidate = std::uint64_t{base_} + autoAdds_;
+  if (candidate < internal::kIdSentinel) id = static_cast<ComponentId>(candidate);
+  ++autoAdds_;
   Op op;
   op.kind = OpKind::Add;
   op.id = id;
@@ -25,7 +24,6 @@ ComponentId EditBatch::add(Spec spec, std::uint16_t seed) {
 }
 
 void EditBatch::addWithId(ComponentId id, Spec spec, std::uint16_t seed) {
-  if (static_cast<std::uint64_t>(id) >= next_) next_ = static_cast<std::uint64_t>(id) + 1;
   Op op;
   op.kind = OpKind::AddWithId;
   op.id = id;
@@ -115,8 +113,8 @@ Status Netlist::applyInto(const EditBatch& batch, bool checkSeeds, Netlist& out,
     adjacency.emplace(w.b, w.a);
   }
   std::map<ComponentId, std::uint16_t> freshSeeds;
-  // Explicit ids need only be >= the base nextId and distinct, in any order (decode, permuted rebuilds);
-  // `high` is where the next auto id goes and what nextId becomes, so it never moves down.
+  // Explicit ids are judged against the base nextId, in any order (decode, permuted rebuilds); `high` only tracks what
+  // nextId becomes, so it never moves down. add() ids were fixed when the op was recorded (EditBatch::add).
   const ComponentId base = nextId_;
   std::uint64_t high = base;
   std::set<ComponentId> retiredHere;  // created and removed within this batch
@@ -132,21 +130,24 @@ Status Netlist::applyInto(const EditBatch& batch, bool checkSeeds, Netlist& out,
     return internal::pinExists(it->second, pin.index) ? Status::Ok : Status::BadPin;
   };
 
+  // connect and disconnect judge a wire the same way: pin a (component, then pin), pin b, then a wire onto itself.
+  const auto resolveWire = [&resolvePin](const Pin& a, const Pin& b) noexcept {
+    Status status = resolvePin(a);
+    if (status != Status::Ok) return status;
+    status = resolvePin(b);
+    if (status != Status::Ok) return status;
+    return a == b ? Status::BadPin : Status::Ok;
+  };
+
   for (const EditBatch::Op& op : batch.ops_) {
     switch (op.kind) {
       case EditOp::Add:
       case EditOp::AddWithId: {
-        ComponentId id = 0;
-        if (op.kind == EditOp::Add) {
-          if (high >= internal::kIdSentinel) return Status::LimitExceeded;
-          id = static_cast<ComponentId>(high);
-        } else {
-          if (op.id < base) return comps.contains(op.id) ? Status::DuplicateId : Status::RetiredId;
-          if (comps.contains(op.id)) return Status::DuplicateId;
-          if (retiredHere.contains(op.id)) return Status::RetiredId;
-          if (op.id >= internal::kIdSentinel) return Status::LimitExceeded;
-          id = op.id;
-        }
+        const ComponentId id = op.id;
+        if (op.kind == EditOp::Add && id == 0) return Status::LimitExceeded;  // add() found the id space exhausted
+        if (comps.contains(id)) return Status::DuplicateId;
+        if (id < base || retiredHere.contains(id)) return Status::RetiredId;
+        if (id >= internal::kIdSentinel) return Status::LimitExceeded;
         const Status status = checkSpec(op.spec, op.seed);
         if (status != Status::Ok) return status;
         comps.emplace(id, op.spec);
@@ -185,11 +186,8 @@ Status Netlist::applyInto(const EditBatch& batch, bool checkSeeds, Netlist& out,
         break;
       }
       case EditOp::Connect: {
-        Status status = resolvePin(op.a);
-        if (status != Status::Ok) return status;
-        status = resolvePin(op.b);
-        if (status != Status::Ok) return status;
-        if (op.a == op.b) return Status::BadPin;
+        const Status pins = resolveWire(op.a, op.b);
+        if (pins != Status::Ok) return pins;
         if (adjacency.contains(WirePair{op.a, op.b})) return Status::DuplicateWire;
         adjacency.emplace(op.a, op.b);
         adjacency.emplace(op.b, op.a);
@@ -197,6 +195,8 @@ Status Netlist::applyInto(const EditBatch& batch, bool checkSeeds, Netlist& out,
         break;
       }
       case EditOp::Disconnect: {
+        const Status pins = resolveWire(op.a, op.b);
+        if (pins != Status::Ok) return pins;
         if (!adjacency.contains(WirePair{op.a, op.b})) return Status::UnknownWire;
         adjacency.erase(WirePair{op.a, op.b});
         adjacency.erase(WirePair{op.b, op.a});

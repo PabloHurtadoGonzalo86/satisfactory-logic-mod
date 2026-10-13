@@ -25,9 +25,11 @@ struct Wire {
 class EditBatch {
  public:
   // The base is the nextId of the netlist the batch is meant for (a fresh netlist starts at 1).
-  explicit EditBatch(ComponentId baseNextId = 1) noexcept : base_(baseNextId), next_(baseNextId) {}
+  explicit EditBatch(ComponentId baseNextId = 1) noexcept : base_(baseNextId) {}
 
-  ComponentId add(Spec spec, std::uint16_t seed);  // id = base nextId + adds so far
+  // The id is the base nextId plus the number of add() calls before this one; explicit ids do not move it, so one that
+  // collides is DuplicateId at apply. Returns 0 once that id would reach 0xFFFFFFFF; apply then reports LimitExceeded.
+  ComponentId add(Spec spec, std::uint16_t seed);
   void addWithId(ComponentId id, Spec spec, std::uint16_t seed);
   void remove(ComponentId id);
   void replace(ComponentId id, Spec spec, std::uint16_t seed);
@@ -51,7 +53,7 @@ class EditBatch {
   };
 
   ComponentId base_;
-  std::uint64_t next_;  // mirrors the working nextId of apply, so add() can hand out the final id
+  std::uint64_t autoAdds_ = 0;  // add() calls so far
   std::vector<Op> ops_;
 };
 
