@@ -1,7 +1,9 @@
 # Satisfactory Logic (nombre de trabajo)
 
-> **Estado: borrador de trabajo, repositorio privado.** El nombre definitivo y la referencia de ficsit.app
-> (`mod_reference`, permanente una vez creada) están pendientes. Nada de este repo se ha publicado.
+> **Estado: borrador de trabajo.** El repositorio es público desde el 13-oct-2026 para servir la web de
+> documentación: **<https://pablohurtadogonzalo86.github.io/satisfactory-logic-mod/>**. El mod todavía no existe y
+> no está publicado en ficsit.app. El nombre definitivo y la referencia de ficsit.app (`mod_reference`, permanente
+> una vez creada) están pendientes.
 
 Un mod de lógica digital **estilo Redstone** para Satisfactory: señales de 4 bits (0–15, un dígito
 hexadecimal), cables, puertas, memoria, relojes, sensores y actuadores, con un simulador determinista de tiempo
@@ -26,11 +28,11 @@ confirmar en el juego**, es distinto:
 
 | Decisión | Resultado |
 | --- | --- |
-| Dónde vive | Repo aparte, **privado hasta la v0.1** |
+| Dónde vive | Repo aparte. Privado al principio; **público desde el 13-oct-2026** para servir la web (decisión del propietario) |
 | Tipo de señal | Nibble 0–15 (el 0/1 puro es el caso particular). Provisional hasta leer la investigación |
 | Orden de trabajo | Núcleo del simulador y teoría primero; el adaptador de Unreal después |
 | Estrategia | Mod propio diferenciado, no una copia de Circuitry |
-| Web de documentación | GitHub Pages de este repo. Con plan Free Pages solo sirve repos públicos; el propietario acepta hacerlo público cuando haga falta (13-oct), previa auditoría de que no hay nada que no deba serlo y confirmación expresa del cambio de visibilidad |
+| Web de documentación | GitHub Pages de este repo, **activa**. Con plan Free Pages solo sirve repos públicos; por eso el repo es público |
 | Pruebas | Se automatizan todas las posibles; el propietario prueba en el juego al final |
 
 El motivo y las alternativas de cada una están en [docs/decisions](docs/decisions/0001-decisiones-iniciales.md).

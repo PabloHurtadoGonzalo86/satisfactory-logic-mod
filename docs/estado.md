@@ -13,7 +13,7 @@ las demás secciones de la web.
 | 3. Núcleo del simulador (C++ sin Unreal) | Implementación, oráculo independiente en Python, tests, mutantes y revisiones | **En curso**: oráculo e implementación escritos; integración y pruebas en marcha |
 | 4. Prueba mínima en el PC del propietario | Qué puede y qué no puede hacer un mod en el juego (tipo de cable, gancho de tick, edificio nativo en servidor Linux) | Pendiente; es el mayor riesgo del proyecto |
 | 5. Adaptador de Unreal | Subsistema de servidor, sensores y actuadores, edificios | Pendiente de la fase 4 |
-| 6. Publicación | Mod en ficsit.app con declaración de uso de IA | Pendiente; requiere la cuenta del propietario |
+| 6. Publicación | Mod en ficsit.app con declaración de uso de IA | Pendiente; requiere la cuenta del propietario. La **web y el repositorio ya son públicos** desde el 13-oct-2026 |
 
 ## Qué se puede verificar aquí y qué no
 

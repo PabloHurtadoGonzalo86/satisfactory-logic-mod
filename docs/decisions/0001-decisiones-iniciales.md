@@ -57,3 +57,14 @@ Estado: **aceptadas por el propietario**, salvo donde se indica "provisional".
 
 - ficsit.app exige declarar el uso de IA en el código y no permite deshacer esa declaración una vez hecha; se
   declarará de forma veraz al publicar.
+
+## 8. Publicación del repositorio (13-oct-2026)
+
+- El mismo día el propietario autorizó sin reservas continuar y hacer público el repo para servir la web, así que
+  se publicó tras una auditoría del árbol exacto a publicar: sin secretos, correos, binarios, SDK ni assets del
+  juego, y con las referencias a material privado redactadas.
+- El historial previo a la publicación contenía versiones sin redactar de esas referencias, así que **no se
+  publicó**: el repo público empieza en un único commit que lo condensa, y la historia completa se conserva en un
+  repositorio privado de archivo.
+- La web se despliega con GitHub Pages desde un workflow (MkDocs Material, construcción estricta) y la CI vigila
+  que no vuelvan rutas locales ni tokens (`scripts/check_public_hygiene.py`).
