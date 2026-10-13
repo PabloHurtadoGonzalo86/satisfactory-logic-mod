@@ -6,27 +6,9 @@
 
 namespace slgt {
 
-bool compatible(const ApplyResult& expected, Status got) noexcept {
-  if (expected.status == Status::Ok) return got == Status::Ok;
-  if (got == Status::Ok) return false;
-  switch (expected.soft) {
-    case ApplyResult::Soft::Exact: return got == expected.status;
-    case ApplyResult::Soft::ParamLimit: return got == Status::BadSpec || got == Status::LimitExceeded;
-    case ApplyResult::Soft::AnyError: return true;
-    case ApplyResult::Soft::UnknownOrRetired: return got == Status::UnknownComponent || got == Status::RetiredId;
-  }
-  return false;
-}
+bool compatible(const ApplyResult& expected, Status got) noexcept { return expected.status == got; }
 
-const char* describe(const ApplyResult& r) noexcept {
-  switch (r.soft) {
-    case ApplyResult::Soft::Exact: return statusName(r.status);
-    case ApplyResult::Soft::ParamLimit: return "BadSpec|LimitExceeded";
-    case ApplyResult::Soft::AnyError: return "any error";
-    case ApplyResult::Soft::UnknownOrRetired: return "UnknownComponent|RetiredId";
-  }
-  return "?";
-}
+const char* describe(const ApplyResult& r) noexcept { return statusName(r.status); }
 
 ReferenceSim::ReferenceSim(const Limits& lim, std::uint32_t hostStepMicros)
     : limits_(lim), hostStep_(hostStepMicros) {}
@@ -310,7 +292,6 @@ bool ReferenceSim::load(const BlobData& d) {
   }
   comps_ = std::move(comps);
   wires_ = std::set<Wire>(d.wires.begin(), d.wires.end());
-  retired_.clear();
   nextId_ = d.nextId;
   tick_ = d.tick;
   hostStep_ = d.hostStepMicros;
@@ -324,35 +305,41 @@ namespace {
 struct Work {
   std::map<ComponentId, ReferenceSim::Comp> comps;
   std::set<Wire> wires;
-  std::set<ComponentId> retired;
+  std::set<ComponentId> retired;   // removed within this batch
   std::uint32_t nextId = 1;
 };
 
-ApplyResult fail(Status s, ApplyResult::Soft soft = ApplyResult::Soft::Exact) {
+ApplyResult fail(Status s) {
   ApplyResult r;
   r.status = s;
-  r.soft = soft;
   return r;
 }
 
-std::size_t netSize(const std::set<Wire>& wires, Pin p) {
+// The largest set of pins joined by wires, counting the pins that appear in a wire (a lone pin is a net of one).
+std::size_t largestNet(const std::set<Wire>& wires) {
   std::map<Pin, std::vector<Pin>> adj;
   for (const Wire& w : wires) {
     adj[w.a].push_back(w.b);
     adj[w.b].push_back(w.a);
   }
-  std::set<Pin> seen{p};
-  std::vector<Pin> stack{p};
-  while (!stack.empty()) {
-    const Pin cur = stack.back();
-    stack.pop_back();
-    const auto a = adj.find(cur);
-    if (a == adj.end()) continue;
-    for (const Pin& n : a->second) {
-      if (seen.insert(n).second) stack.push_back(n);
+  std::set<Pin> done;
+  std::size_t best = 0;
+  for (const auto& [start, ignored] : adj) {
+    (void)ignored;
+    if (done.count(start) != 0) continue;
+    std::set<Pin> net{start};
+    std::vector<Pin> stack{start};
+    while (!stack.empty()) {
+      const Pin cur = stack.back();
+      stack.pop_back();
+      for (const Pin& next : adj[cur]) {
+        if (net.insert(next).second) stack.push_back(next);
+      }
     }
+    best = std::max(best, net.size());
+    done.insert(net.begin(), net.end());
   }
-  return seen.size();
+  return best;
 }
 
 std::uint64_t delayCells(const Work& w) {
@@ -363,10 +350,20 @@ std::uint64_t delayCells(const Work& w) {
   return n;
 }
 
-// Missing component: an id that was removed may answer RetiredId or UnknownComponent.
-ApplyResult missing(const Work& w, ComponentId id) {
-  if (w.retired.count(id) != 0) return fail(Status::UnknownComponent, ApplyResult::Soft::UnknownOrRetired);
-  return fail(Status::UnknownComponent);
+// A pin is judged by its component first (UnknownComponent), then by the pin itself (BadPin).
+Status pinStatus(const Work& w, const Pin& p) {
+  const auto it = w.comps.find(p.component);
+  if (it == w.comps.end()) return Status::UnknownComponent;
+  return pinValid(it->second.spec, p.index) ? Status::Ok : Status::BadPin;
+}
+
+// connect and disconnect: pin a, then pin b, then a wire from a pin to itself.
+Status wireStatus(const Work& w, const Pin& a, const Pin& b) {
+  Status s = pinStatus(w, a);
+  if (s != Status::Ok) return s;
+  s = pinStatus(w, b);
+  if (s != Status::Ok) return s;
+  return a == b ? Status::BadPin : Status::Ok;
 }
 
 }  // namespace
@@ -378,12 +375,12 @@ ApplyResult ReferenceSim::applyWithBase(const std::vector<EditOp>& ops, std::uin
   Work w;
   w.comps = comps_;
   w.wires = wires_;
-  w.retired = retired_;
   w.nextId = nextId_;
-  // docs/spec/ambiguities.md B3: explicit ids are compared with the base nextId of the batch, in any order;
-  // add() hands out base + the number of add() calls so far; afterwards nextId = max(base, highest added + 1).
+  // 02 sections 2 and 4 (ambiguities.md B3): explicit ids are compared with the base nextId of the batch, in any order;
+  // add() hands out base + the number of add() calls so far (explicit ids do not move it), and an id that collides is
+  // DuplicateId or RetiredId when the operation is judged; afterwards nextId = max(base, highest id added + 1).
   const std::uint32_t base = nextId_;
-  std::uint32_t viaCount = 0;
+  std::uint64_t viaCount = 0;
 
   for (const EditOp& op : ops) {
     switch (op.kind) {
@@ -391,29 +388,24 @@ ApplyResult ReferenceSim::applyWithBase(const std::vector<EditOp>& ops, std::uin
         ComponentId id = op.id;
         if (op.viaAdd) {
           const std::uint64_t candidate = std::uint64_t{base} + viaCount;
+          ++viaCount;
           if (candidate >= 0xFFFFFFFFULL) return fail(Status::LimitExceeded);
           id = u32(candidate);
-          ++viaCount;
-        } else if (id == 0 || id == 0xFFFFFFFFU) {
-          return fail(Status::BadSpec, ApplyResult::Soft::AnyError);
         }
-        const SpecCheck sc = checkSpec(op.spec, op.seed, limits_);
-        if (sc == SpecCheck::BadDomain) return fail(Status::BadSpec);
-        if (sc == SpecCheck::OverLimit) return fail(Status::BadSpec, ApplyResult::Soft::ParamLimit);
-        if (w.retired.count(id) != 0) return fail(Status::RetiredId);
         if (w.comps.count(id) != 0) return fail(Status::DuplicateId);
-        if (!op.viaAdd && id < base) return fail(Status::RetiredId, ApplyResult::Soft::AnyError);
-        if (w.comps.size() + 1 > limits_.maxComponents) return fail(Status::LimitExceeded);
+        if (id < base || w.retired.count(id) != 0) return fail(Status::RetiredId);
+        if (id >= 0xFFFFFFFFU) return fail(Status::LimitExceeded);
+        const Status sc = checkSpec(op.spec, op.seed, limits_);
+        if (sc != Status::Ok) return fail(sc);
         Comp c;
         c.spec = op.spec;
         c.st = seedState(op.spec, op.seed);
         w.comps[id] = std::move(c);
-        if (delayCells(w) > limits_.maxDelayCells) return fail(Status::LimitExceeded);
         w.nextId = std::max(w.nextId, id + 1U);
         break;
       }
       case EditKind::Remove: {
-        if (w.comps.count(op.id) == 0) return missing(w, op.id);
+        if (w.comps.count(op.id) == 0) return fail(Status::UnknownComponent);
         w.comps.erase(op.id);
         for (auto it = w.wires.begin(); it != w.wires.end();) {
           if (it->a.component == op.id || it->b.component == op.id) it = w.wires.erase(it);
@@ -424,31 +416,23 @@ ApplyResult ReferenceSim::applyWithBase(const std::vector<EditOp>& ops, std::uin
       }
       case EditKind::Replace: {
         const auto it = w.comps.find(op.id);
-        if (it == w.comps.end()) return missing(w, op.id);
-        const SpecCheck sc = checkSpec(op.spec, op.seed, limits_);
-        if (sc == SpecCheck::BadDomain) return fail(Status::BadSpec);
-        if (sc == SpecCheck::OverLimit) return fail(Status::BadSpec, ApplyResult::Soft::ParamLimit);
+        if (it == w.comps.end()) return fail(Status::UnknownComponent);
+        const Status sc = checkSpec(op.spec, op.seed, limits_);
+        if (sc != Status::Ok) return fail(sc);
         for (const Wire& x : w.wires) {
           if (x.a.component == op.id && !pinValid(op.spec, x.a.index)) return fail(Status::BadPin);
           if (x.b.component == op.id && !pinValid(op.spec, x.b.index)) return fail(Status::BadPin);
         }
         it->second.spec = op.spec;
         it->second.st = seedState(op.spec, op.seed);
-        if (delayCells(w) > limits_.maxDelayCells) return fail(Status::LimitExceeded);
         break;
       }
       case EditKind::Connect: {
-        const auto ia = w.comps.find(op.a.component);
-        if (ia == w.comps.end()) return missing(w, op.a.component);
-        const auto ib = w.comps.find(op.b.component);
-        if (ib == w.comps.end()) return missing(w, op.b.component);
-        if (!pinValid(ia->second.spec, op.a.index) || !pinValid(ib->second.spec, op.b.index)) return fail(Status::BadPin);
-        if (op.a == op.b) return fail(Status::BadPin, ApplyResult::Soft::AnyError);
+        const Status ws = wireStatus(w, op.a, op.b);
+        if (ws != Status::Ok) return fail(ws);
         const Wire x = makeWire(op.a, op.b);
         if (w.wires.count(x) != 0) return fail(Status::DuplicateWire);
-        if (w.wires.size() + 1 > limits_.maxWires) return fail(Status::LimitExceeded);
         w.wires.insert(x);
-        if (netSize(w.wires, op.a) > limits_.maxNetPins) return fail(Status::LimitExceeded);
         if (quirk_ == Quirk::ToggleRearmsOnConnect) {
           for (const Pin& end : {op.a, op.b}) {
             const auto it = w.comps.find(end.component);
@@ -458,12 +442,8 @@ ApplyResult ReferenceSim::applyWithBase(const std::vector<EditOp>& ops, std::uin
         break;
       }
       case EditKind::Disconnect: {
-        const auto ia = w.comps.find(op.a.component);
-        const auto ib = w.comps.find(op.b.component);
-        if (ia == w.comps.end() || ib == w.comps.end() || !pinValid(ia->second.spec, op.a.index) ||
-            !pinValid(ib->second.spec, op.b.index)) {
-          return fail(Status::UnknownWire, ApplyResult::Soft::AnyError);
-        }
+        const Status ws = wireStatus(w, op.a, op.b);
+        if (ws != Status::Ok) return fail(ws);
         const Wire x = makeWire(op.a, op.b);
         if (w.wires.count(x) == 0) return fail(Status::UnknownWire);
         w.wires.erase(x);
@@ -471,9 +451,12 @@ ApplyResult ReferenceSim::applyWithBase(const std::vector<EditOp>& ops, std::uin
       }
     }
   }
+  // 01 section 7 and 02 section 5: the limits judge the netlist the batch leaves behind, not its intermediate steps.
+  if (w.comps.size() > limits_.maxComponents || w.wires.size() > limits_.maxWires) return fail(Status::LimitExceeded);
+  if (delayCells(w) > limits_.maxDelayCells) return fail(Status::LimitExceeded);
+  if (largestNet(w.wires) > limits_.maxNetPins) return fail(Status::LimitExceeded);
   comps_ = std::move(w.comps);
   wires_ = std::move(w.wires);
-  retired_ = std::move(w.retired);
   nextId_ = w.nextId;
   return ApplyResult{};
 }
@@ -484,50 +467,16 @@ ApplyResult ReferenceSim::applyWithBase(const std::vector<EditOp>& ops, std::uin
 
 namespace slgt {
 
-bool compatible(const DecodeResult& expected, Status got) noexcept {
-  if (expected.status == Status::Ok) return got == Status::Ok || (expected.maybeOk && got == Status::FormatCorrupt);
-  if (got == Status::Ok) return expected.maybeOk;
-  if (got == expected.status) return true;
-  if (expected.orLimit && (got == Status::FormatCorrupt || got == Status::LimitExceeded)) return true;
-  return false;
-}
+bool compatible(const DecodeResult& expected, Status got) noexcept { return expected.status == got; }
 
-std::string describe(const DecodeResult& r) {
-  std::string s = statusName(r.status);
-  if (r.orLimit) s += "|FormatCorrupt|LimitExceeded";
-  if (r.maybeOk) s += "|Ok";
-  return s;
-}
+std::string describe(const DecodeResult& r) { return statusName(r.status); }
 
 namespace {
 
-DecodeResult dfail(Status s, bool orLimit = false, bool maybeOk = false) {
+DecodeResult dfail(Status s) {
   DecodeResult r;
   r.status = s;
-  r.orLimit = orLimit;
-  r.maybeOk = maybeOk;
   return r;
-}
-
-bool paramsValid(const Spec& s, bool& overLimit, const Limits& lim) {
-  // Domain of the parameters only (seeds do not exist in a blob; the state is checked separately).
-  overLimit = false;
-  switch (s.kind) {
-    case Kind::Const: return s.p0 <= 15 && s.p1 == 0 && s.p2 == 0;
-    case Kind::Sensor: case Kind::Actuator: case Kind::Latch: case Kind::Toggle:
-      return s.p0 == 0 && s.p1 == 0 && s.p2 == 0;
-    case Kind::Gate:
-      overLimit = s.p2 > lim.maxArity;
-      return s.p0 <= 2 && s.p1 <= 1 && s.p2 >= 1;
-    case Kind::Delay:
-      overLimit = s.p0 > lim.maxDelay;
-      return s.p0 >= 1 && s.p1 == 0 && s.p2 == 0;
-    case Kind::Compare: return s.p0 <= 1 && s.p1 == 0 && s.p2 == 0;
-    case Kind::Clock:
-      overLimit = s.p0 > lim.maxClockPeriod;
-      return s.p0 >= 2 && s.p1 >= 1 && s.p1 < s.p0 && s.p2 == 0;
-  }
-  return false;
 }
 
 bool stateValid(const Spec& s, const std::vector<std::uint8_t>& st) {
@@ -550,6 +499,11 @@ bool stateValid(const Spec& s, const std::vector<std::uint8_t>& st) {
 
 }  // namespace
 
+// The order of 02 section 6.3: magic, versions, tail, header counts against the limits (LimitExceeded) and then, count
+// by count, against the bytes left (FormatCorrupt); then component by component the id, the kind, the parameters (a
+// parameter over its cap is LimitExceeded, any other invalid one FormatCorrupt) and the state; nextId; the wires; no byte
+// left over; and only then the limits of the whole netlist (Delay cells, then pins per net), so a blob that is corrupt
+// anywhere answers FormatCorrupt even when it also exceeds one of those totals.
 DecodeResult refDecode(const std::uint8_t* data, std::size_t n, const Limits& lim, BlobData& out) {
   if (n < 4 || data[0] != 0x53 || data[1] != 0x4C || data[2] != 0x47 || data[3] != 0x43) return dfail(Status::FormatCorrupt);
   if (n < 8) return dfail(Status::FormatCorrupt);
@@ -570,17 +524,14 @@ DecodeResult refDecode(const std::uint8_t* data, std::size_t n, const Limits& li
   const std::uint32_t wireCount = readU32(data + 28);
   const std::size_t end = n - kBlobTailBytes;
   const std::size_t remaining = end - kBlobHeaderBytes;
-  const bool overLimit = compCount > lim.maxComponents || wireCount > lim.maxWires;
-  const bool overBytes = static_cast<std::uint64_t>(compCount) * kBlobRecordBytes +
-                             static_cast<std::uint64_t>(wireCount) * kBlobWireBytes > remaining;
-  if (overLimit && overBytes) return dfail(Status::LimitExceeded, true);
-  if (overLimit) return dfail(Status::LimitExceeded);
-  if (overBytes) return dfail(Status::FormatCorrupt);
+  if (compCount > lim.maxComponents || wireCount > lim.maxWires) return dfail(Status::LimitExceeded);
+  if (static_cast<std::uint64_t>(compCount) * kBlobRecordBytes > remaining ||
+      static_cast<std::uint64_t>(wireCount) * kBlobWireBytes > remaining) {
+    return dfail(Status::FormatCorrupt);
+  }
 
   std::size_t pos = kBlobHeaderBytes;
   std::uint64_t cells = 0;
-  bool maybeOk = false;
-  bool orLimit = false;
   ComponentId prev = 0;
   for (std::uint32_t i = 0; i < compCount; ++i) {
     if (end - pos < kBlobRecordBytes) return dfail(Status::FormatCorrupt);
@@ -591,25 +542,21 @@ DecodeResult refDecode(const std::uint8_t* data, std::size_t n, const Limits& li
     c.spec.p1 = readU16(data + pos + 7);
     c.spec.p2 = readU16(data + pos + 9);
     pos += kBlobRecordBytes;
-    if (!kindInRange(c.spec.kind)) return dfail(Status::FormatCorrupt);
-    bool over = false;
-    if (!paramsValid(c.spec, over, lim)) return dfail(Status::FormatCorrupt, over);
-    if (over) orLimit = true;
-    if (i > 0 && c.id <= prev) return dfail(Status::FormatCorrupt);
-    if (c.id == 0 || c.id == 0xFFFFFFFFU) maybeOk = true;
+    if (c.id <= prev || c.id == 0xFFFFFFFFU) return dfail(Status::FormatCorrupt);
     prev = c.id;
+    if (!kindInRange(c.spec.kind)) return dfail(Status::FormatCorrupt);
+    const Status params = checkParams(c.spec, lim);
+    if (params == Status::LimitExceeded) return dfail(Status::LimitExceeded);
+    if (params != Status::Ok) return dfail(Status::FormatCorrupt);
     const std::size_t ss = stateSize(c.spec);
     if (end - pos < ss) return dfail(Status::FormatCorrupt);
     c.state.assign(data + pos, data + pos + ss);
     pos += ss;
-    if (!stateValid(c.spec, c.state)) return dfail(Status::FormatCorrupt, orLimit);
+    if (!stateValid(c.spec, c.state)) return dfail(Status::FormatCorrupt);
     if (c.spec.kind == Kind::Delay) cells += c.spec.p0;
     d.comps.push_back(std::move(c));
   }
-  if (orLimit) return dfail(Status::FormatCorrupt, true);
-  if (cells > lim.maxDelayCells) return dfail(Status::LimitExceeded);
-  if (!d.comps.empty() && d.nextId <= d.comps.back().id) return dfail(Status::FormatCorrupt);
-  if (d.nextId == 0) maybeOk = true;
+  if (d.nextId == 0 || d.nextId <= prev) return dfail(Status::FormatCorrupt);
 
   Pin prevA, prevB;
   for (std::uint32_t i = 0; i < wireCount; ++i) {
@@ -635,34 +582,10 @@ DecodeResult refDecode(const std::uint8_t* data, std::size_t n, const Limits& li
   }
   if (pos != end) return dfail(Status::FormatCorrupt);
 
-  // Net sizes against maxNetPins.
-  std::map<Pin, std::vector<Pin>> adj;
-  for (const Wire& w : d.wires) {
-    adj[w.a].push_back(w.b);
-    adj[w.b].push_back(w.a);
-  }
-  std::set<Pin> done;
-  for (const auto& [start, ignored] : adj) {
-    (void)ignored;
-    if (done.count(start) != 0) continue;
-    std::vector<Pin> stack{start};
-    std::set<Pin> comp{start};
-    while (!stack.empty()) {
-      const Pin cur = stack.back();
-      stack.pop_back();
-      for (const Pin& nb : adj[cur]) {
-        if (comp.insert(nb).second) stack.push_back(nb);
-      }
-    }
-    if (comp.size() > lim.maxNetPins) return dfail(Status::LimitExceeded);
-    done.insert(comp.begin(), comp.end());
-  }
+  if (cells > lim.maxDelayCells) return dfail(Status::LimitExceeded);
+  if (largestNet(std::set<Wire>(d.wires.begin(), d.wires.end())) > lim.maxNetPins) return dfail(Status::LimitExceeded);
   out = std::move(d);
-  DecodeResult ok;
-  // maybeOk: the blob only touches a point the spec leaves open (id 0 or 0xFFFFFFFF, nextId 0), so
-  // the core may accept it or answer FormatCorrupt.
-  ok.maybeOk = maybeOk;
-  return ok;
+  return DecodeResult{};
 }
 
 }  // namespace slgt

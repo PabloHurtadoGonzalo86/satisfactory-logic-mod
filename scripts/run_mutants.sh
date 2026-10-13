@@ -8,11 +8,23 @@
 # with the letter and the number, padded or not: T5 finds T05_...), and the resolved selection must first
 # PASS on the unmutated copy with at least one test run, so a wrong name cannot turn into a fake kill.
 #
+# The tokens of the first line are T<n> and G<n> (as above) or GOLDEN/<name> (the golden test of
+# core/golden/<name>.*), which is how a mutant that only the golden bytes can see names its killer.
+#
 # Usage: scripts/run_mutants.sh [M01 M05 ...]      (default: every patch)
 # Environment: SLG_LOCK (lock file; skipped when an ancestor already holds it), SLG_ULIMIT_V (KiB),
 #   SLG_CASES, JOBS (make -j, default 1), MUTANT_TIMEOUT (s, default 900), MUTANT_MIN (default 12),
 #   MUTANT_PASS_ARGS=1 (also pass the names as arguments; they always go in SLG_ONLY, the harness's
 #   comma list of name substrings in core/tests/harness.hpp).
+#   MUTANT_KEEP_BASE=1 refreshes an existing build/mutants/base in place (tar keeps the source mtimes, so make
+#   rebuilds only what changed) instead of rebuilding it from nothing: a run of one mutant then costs one
+#   compile and one link, not a whole build. A source file deleted or renamed in the tree stays in the kept base
+#   (and the wildcards still compile and link it): rm -rf build/mutants/base after removing one.
+#   MUTANT_FULL=1 runs the whole suite on a mutant that survived its named tests and says which tests would
+#   have killed it (diagnosis only: the mutant still counts as a survivor).
+#   MUTANT_GUARD=1 makes the script wait, before every mutant, for scripts/guard.sh to see a calm host (the shared
+#   VPS, where a long run would otherwise start the next build into a busy machine); if the guard refuses (exit 75)
+#   the run stops there, prints the table so far and exits 75. Off by default: CI and laptops have no such host.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -60,10 +72,10 @@ locked() {
 }
 
 tests_of() {
-  head -n 1 "$1" | grep -oE '\b[TG][0-9]{1,2}\b' | awk '!seen[$0]++' | tr '\n' ' ' | sed 's/ $//' || true
+  head -n 1 "$1" | grep -oE '\b[TG][0-9]{1,2}\b|GOLDEN/[A-Za-z0-9_.-]+' | awk '!seen[$0]++' | tr '\n' ' ' | sed 's/ $//' || true
 }
 
-# resolve_names <dir> <tokens...>: full test names for tokens such as T5 or G6, from `slg_tests --list`.
+# resolve_names <dir> <tokens...>: full test names for tokens such as T5, G6 or GOLDEN/all_kinds, from `slg_tests --list`.
 # Prints the names; status 1 when a token matches nothing, 2 when the binary cannot list its tests.
 resolve_names() {
   local dir=$1
@@ -73,9 +85,13 @@ resolve_names() {
   listing=$(locked "$dir" build/slg_tests --list 2>/dev/null) || return 2
   [[ -n "$listing" ]] || return 2
   for token in "$@"; do
-    letter=${token:0:1}
-    number=$((10#${token:1}))
-    found=$(awk -F'\t' -v re="^${letter}0*${number}([^0-9]|\$)" '$1 ~ re { print $1 }' <<<"$listing")
+    if [[ "$token" == GOLDEN/* ]]; then
+      found=$(awk -F'\t' -v want="$token" '$1 == want { print $1 }' <<<"$listing")
+    else
+      letter=${token:0:1}
+      number=$((10#${token:1}))
+      found=$(awk -F'\t' -v re="^${letter}0*${number}([^0-9]|\$)" '$1 ~ re { print $1 }' <<<"$listing")
+    fi
     if [[ -z "$found" ]]; then
       echo "$token"
       return 1
@@ -139,7 +155,8 @@ if [[ ${#selected[@]} -eq 0 && ${#patches[@]} -lt $MIN_MUTANTS ]]; then
   exit 1
 fi
 
-rm -rf "$BASE" "$WORK" "$LOGS"
+rm -rf "$WORK" "$LOGS"
+[[ -n "${MUTANT_KEEP_BASE:-}" ]] || rm -rf "$BASE"
 mkdir -p "$BASE" "$LOGS"
 trap 'rm -rf "$WORK"' EXIT
 tar --exclude='__pycache__' -cf - "${COPY_ITEMS[@]}" | tar -C "$BASE" -xf -
@@ -151,7 +168,7 @@ if ! locked "$BASE" make -j"$JOBS" build/slg_tests >"$LOGS/base.build.log" 2>&1;
 fi
 
 declare -A baseline=()
-killed=0 survived=0 errors=0 tolerated=0
+killed=0 survived=0 errors=0 tolerated=0 aborted=0
 rows=()
 
 record() { # id tests result detail
@@ -161,6 +178,11 @@ record() { # id tests result detail
 
 for patch in "${patches[@]}"; do
   id=$(basename "$patch" .patch)
+  if [[ -n "${MUTANT_GUARD:-}" && -x scripts/guard.sh ]] && ! scripts/guard.sh true; then
+    echo "run_mutants: the host is busy; stopping before $id (nothing was started for it)" >&2
+    aborted=1
+    break
+  fi
   names=$(tests_of "$patch")
   if [[ -z "$names" ]]; then
     record "$id" "-" "ERROR" "first line of $patch names no tests (expected tokens like T5 or G6)"
@@ -182,7 +204,7 @@ for patch in "${patches[@]}"; do
   name_list=($resolved)
 
   if [[ -z "${baseline[$resolved]+set}" ]]; then
-    log="$LOGS/baseline-${names// /_}.log"
+    log="$LOGS/baseline-${names//[ \/]/_}.log"
     if run_selection "$BASE" "${name_list[@]}" >"$log" 2>&1 && ran_something "$log"; then
       baseline[$resolved]=ok
     else
@@ -190,7 +212,7 @@ for patch in "${patches[@]}"; do
     fi
   fi
   if [[ "${baseline[$resolved]}" != ok ]]; then
-    record "$id" "$names" "ERROR" "'$resolved' does not pass (with at least one test run) on the UNMUTATED tree (log: $LOGS/baseline-${names// /_}.log)"
+    record "$id" "$names" "ERROR" "'$resolved' does not pass (with at least one test run) on the UNMUTATED tree (log: $LOGS/baseline-${names//[ \/]/_}.log)"
     errors=$((errors + 1))
     continue
   fi
@@ -211,15 +233,23 @@ for patch in "${patches[@]}"; do
   status=0
   run_selection "$WORK" "${name_list[@]}" >"$LOGS/$id.test.log" 2>&1 || status=$?
   if [[ $status -eq 0 ]]; then
+    diagnosis=
+    if [[ -n "${MUTANT_FULL:-}" ]]; then
+      full_status=0
+      locked "$WORK" env SLG_CASES="$CASES" timeout "$TIMEOUT" build/slg_tests >"$LOGS/$id.full.log" 2>&1 || full_status=$?
+      diagnosis="; full suite: exit $full_status, failing: $(grep -E '^FAILED: ' "$LOGS/$id.full.log" | sed 's/^FAILED: //' | tr '\n' ' ' || true)"
+    fi
     if [[ -n "${equivalent[$id]+set}" ]]; then
-      record "$id" "$names" "equivalent" "${equivalent[$id]}"
+      record "$id" "$names" "equivalent" "${equivalent[$id]}$diagnosis"
       tolerated=$((tolerated + 1))
     else
-      record "$id" "$names" "SURVIVED" "tests passed on the mutant (log: $LOGS/$id.test.log)"
+      record "$id" "$names" "SURVIVED" "tests passed on the mutant (log: $LOGS/$id.test.log)$diagnosis"
       survived=$((survived + 1))
     fi
   else
     detail="exit status $status"
+    failing=$(grep -E '^FAILED: ' "$LOGS/$id.test.log" | sed 's/^FAILED: //' | tr '\n' ' ' | sed 's/ $//' || true)
+    [[ -z "$failing" ]] || detail="$detail; failing: $failing"
     [[ $status -eq 124 ]] && detail="timed out after ${TIMEOUT}s"
     [[ -n "${equivalent[$id]+set}" ]] && detail="$detail; NOTE: listed in equivalent.txt but killed"
     record "$id" "$names" "killed" "$detail"
@@ -233,4 +263,8 @@ echo "ID     TESTS                  RESULT       DETAIL"
 printf '%s\n' "${rows[@]}"
 echo
 echo "run_mutants: $killed killed, $survived survived, $tolerated proven equivalent, $errors errors (of ${#patches[@]})"
+if [[ $aborted -ne 0 ]]; then
+  echo "run_mutants: stopped early because the host stayed busy; the mutants after the last row were not run" >&2
+  exit 75
+fi
 [[ $survived -eq 0 && $errors -eq 0 ]]

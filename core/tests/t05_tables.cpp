@@ -295,34 +295,32 @@ void checkDelayChain(Ctx& ctx, const EngineFactory& f, SplitMix64& rng) {
 // ---- spec rules through the core's public functions ------------------------------------------------------------
 
 void checkSpecRules(Ctx& ctx) {
-  static const unsigned params[] = {0, 1, 2, 3, 4, 7, 8, 9, 15, 16, 17, 255, 256, 257, 4095, 4096, 4097};
+  static const unsigned params[] = {0, 1, 2, 3, 4, 7, 8, 9, 12, 15, 16, 17, 255, 256, 257, 300, 4095, 4096, 4097, 5000, 5001, 65535};
   static const unsigned seeds[] = {0, 1, 2, 3, 7, 15, 16, 17, 255, 4095, 4096};
   Limits small;
   small.maxArity = 3;
   small.maxDelay = 4;
   small.maxClockPeriod = 6;
-  const Limits* const limits[2] = {nullptr, &small};
+  Limits raised;   // caps above the catalog ranges: the caps rule, not the ranges of 01 section 3
+  raised.maxArity = 12;
+  raised.maxDelay = 300;
+  raised.maxClockPeriod = 5000;
+  const Limits* const limits[3] = {nullptr, &small, &raised};
   for (const Limits* lim : limits) {
     const Limits l = lim == nullptr ? Limits{} : *lim;
     for (unsigned kind = 0; kind <= 10; ++kind) {
       for (unsigned p0 : params) {
         for (unsigned p1 : params) {
           for (unsigned p2 : params) {
-            if ((p0 > 5 && p0 != 255 && p0 != 256 && p0 != 4096 && p0 != 16) && (p1 > 5 || p2 > 5)) continue;   // keep the grid affordable
+            if ((p0 > 5 && p0 != 255 && p0 != 256 && p0 != 300 && p0 != 4096 && p0 != 5001 && p0 != 16) && (p1 > 5 || p2 > 5)) continue;   // keep the grid affordable
             for (unsigned seed : seeds) {
               const Spec s{static_cast<Kind>(kind), u16(p0), u16(p1), u16(p2)};
-              if (kind == 1 || kind == 2) {
-                if (seed != 0) continue;   // seeds of stateless kinds are not specified
-              }
-              const SpecCheck want = checkSpec(s, seed, l);
+              const Status want = checkSpec(s, seed, l);
               const Status got = bridge::validateSpec(s, seed, l);
-              const bool ok = want == SpecCheck::Ok ? got == Status::Ok
-                              : want == SpecCheck::BadDomain ? got == Status::BadSpec
-                                                             : (got == Status::BadSpec || got == Status::LimitExceeded);
-              if (!ok) {
+              if (got != want) {
                 SLG_FAIL(ctx, cat("validate(kind ", kind, ", p=", p0, ",", p1, ",", p2, ", seed ", seed, ", maxArity ", static_cast<unsigned>(l.maxArity),
-                                  ") returned ", statusName(got), " but the spec says ",
-                                  want == SpecCheck::Ok ? "Ok" : want == SpecCheck::BadDomain ? "BadSpec" : "BadSpec or LimitExceeded"));
+                                  ", maxDelay ", l.maxDelay, ", maxClockPeriod ", l.maxClockPeriod, ") returned ", statusName(got), " but the spec says ",
+                                  statusName(want)));
                 return;
               }
             }
@@ -336,7 +334,7 @@ void checkSpecRules(Ctx& ctx) {
       for (unsigned p1 : {0U, 1U, 2U}) {
         for (unsigned p2 : {0U, 1U, 3U}) {
           const Spec s{static_cast<Kind>(kind), u16(p0), u16(p1), u16(p2)};
-          if (checkSpec(s, 0, Limits{}) != SpecCheck::Ok) continue;
+          if (checkSpec(s, 0, Limits{}) != Status::Ok) continue;
           SLG_CHECK_MSG(ctx, bridge::restSeedOf(s) == restSeed(s), cat("restSeed of kind ", kind, " (", p0, ",", p1, ",", p2, "): ", bridge::restSeedOf(s)));
         }
       }

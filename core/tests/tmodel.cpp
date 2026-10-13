@@ -84,42 +84,40 @@ std::uint64_t stateSpaceSize(const Spec& s) noexcept {
   return 1;
 }
 
-SpecCheck checkSpec(const Spec& s, unsigned seed, const Limits& lim) noexcept {
-  if (!kindInRange(s.kind)) return SpecCheck::BadDomain;
-  bool bad = false;
-  bool over = false;
+Status checkParams(const Spec& s, const Limits& lim) noexcept {
+  if (!kindInRange(s.kind)) return Status::BadSpec;
   switch (s.kind) {
     case Kind::Const:
-      bad = s.p0 > 15 || s.p1 != 0 || s.p2 != 0;
-      break;
-    case Kind::Sensor:
-      bad = s.p0 != 0 || s.p1 != 0 || s.p2 != 0;
-      break;
-    case Kind::Actuator:
-      bad = s.p0 != 0 || s.p1 != 0 || s.p2 != 0 || seed > 15;
-      break;
+      return (s.p0 > 15 || s.p1 != 0 || s.p2 != 0) ? Status::BadSpec : Status::Ok;
+    case Kind::Sensor: case Kind::Actuator: case Kind::Latch: case Kind::Toggle:
+      return (s.p0 != 0 || s.p1 != 0 || s.p2 != 0) ? Status::BadSpec : Status::Ok;
     case Kind::Gate:
-      bad = s.p0 > 2 || s.p1 > 1 || s.p2 == 0 || (seed != 0 && seed != 15);
-      over = s.p2 > lim.maxArity;
-      break;
+      if (s.p0 > 2 || s.p1 > 1 || s.p2 == 0) return Status::BadSpec;
+      return s.p2 > lim.maxArity ? Status::LimitExceeded : Status::Ok;
     case Kind::Delay:
-      bad = s.p0 == 0 || s.p1 != 0 || s.p2 != 0 || seed > 15;
-      over = s.p0 > lim.maxDelay;
-      break;
+      if (s.p0 == 0 || s.p1 != 0 || s.p2 != 0) return Status::BadSpec;
+      return s.p0 > lim.maxDelay ? Status::LimitExceeded : Status::Ok;
     case Kind::Compare:
-      bad = s.p0 > 1 || s.p1 != 0 || s.p2 != 0 || seed > 15;
-      break;
-    case Kind::Latch:
-    case Kind::Toggle:
-      bad = s.p0 != 0 || s.p1 != 0 || s.p2 != 0 || (seed != 0 && seed != 15);
-      break;
+      return (s.p0 > 1 || s.p1 != 0 || s.p2 != 0) ? Status::BadSpec : Status::Ok;
     case Kind::Clock:
-      bad = s.p0 < 2 || s.p1 == 0 || s.p1 >= s.p0 || s.p2 != 0 || seed >= s.p0;
-      over = s.p0 > lim.maxClockPeriod;
-      break;
+      if (s.p0 < 2 || s.p2 != 0) return Status::BadSpec;
+      if (s.p0 > lim.maxClockPeriod) return Status::LimitExceeded;
+      return (s.p1 < 1 || s.p1 >= s.p0) ? Status::BadSpec : Status::Ok;
   }
-  if (over) return SpecCheck::OverLimit;
-  return bad ? SpecCheck::BadDomain : SpecCheck::Ok;
+  return Status::BadSpec;
+}
+
+Status checkSpec(const Spec& s, unsigned seed, const Limits& lim) noexcept {
+  const Status params = checkParams(s, lim);
+  if (params != Status::Ok) return params;
+  bool inDomain = false;
+  switch (s.kind) {
+    case Kind::Const: case Kind::Sensor: inDomain = seed == 0; break;
+    case Kind::Actuator: case Kind::Delay: case Kind::Compare: inDomain = seed <= 15; break;
+    case Kind::Gate: case Kind::Latch: case Kind::Toggle: inDomain = seed == 0 || seed == 15; break;
+    case Kind::Clock: inDomain = seed < s.p0; break;
+  }
+  return inDomain ? Status::Ok : Status::BadSpec;
 }
 
 const CompDef* Model::find(ComponentId id) const noexcept {

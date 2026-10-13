@@ -91,14 +91,20 @@ std::vector<EditOp> genBatch(SplitMix64& rng, GenState& st, unsigned maxOps, uns
 
 enum class Fault : std::uint8_t {
   BadSpecDomain, BadSpecSeed, BadSpecUnused, BadPinConnect, BadPinReplace, UnknownRemove, UnknownConnect,
-  DuplicateId, RetiredId, UnknownWire, DuplicateWire, StaleBase, NextIdExhausted, kCount
+  DuplicateId, RetiredId, UnknownWire, DuplicateWire, StaleBase, NextIdExhausted,
+  OverCap,                      // arity, Delay length or Clock period above the cap: LimitExceeded, ahead of the seed and of the high width (B2)
+  SpecOrder,                    // a malformed parameter next to one above its cap: BadSpec (B2)
+  DisconnectUnknownComponent,   // disconnect of a wire that names a missing component: UnknownComponent, not UnknownWire (B4)
+  DisconnectBadPin,             // disconnect of a wire with a bad pin, a pin to itself, an actuator output: BadPin (B4)
+  WireOrder,                    // connect or disconnect with a defect in each pin: pin a is judged first (B4)
+  AutoIdCollision,              // an explicit id where add() will hand out the next one: DuplicateId or RetiredId (B3)
+  kCount
 };
 const char* faultName(Fault f) noexcept;
-// What the spec says the status must be for each fault.
-ApplyResult expectedForFault(Fault f);
-// A valid prefix followed by one op that breaks the batch in the given way; st is advanced through the
-// valid prefix only. Returns false when the state has no way to express the fault (e.g. no wires).
-bool genFaultyBatch(SplitMix64& rng, GenState& st, Fault f, std::vector<EditOp>& ops);
+// A valid prefix followed by one op that breaks the batch in the given way (the broken op is always the last one that
+// matters: ops after it are never judged). `want` is the exact status the spec gives; st is advanced through the valid
+// prefix only. Returns false when the state has no way to express the fault (e.g. no wires).
+bool genFaultyBatch(SplitMix64& rng, GenState& st, Fault f, std::vector<EditOp>& ops, Status& want);
 
 // ---- scenarios -------------------------------------------------------------------------------------------
 

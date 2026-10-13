@@ -492,35 +492,67 @@ std::vector<EditOp> genBatch(SplitMix64& rng, GenState& st, unsigned maxOps, uns
 const char* faultName(Fault f) noexcept {
   static const char* const names[] = {"BadSpecDomain", "BadSpecSeed", "BadSpecUnused", "BadPinConnect", "BadPinReplace",
                                       "UnknownRemove", "UnknownConnect", "DuplicateId", "RetiredId", "UnknownWire",
-                                      "DuplicateWire", "StaleBase", "NextIdExhausted"};
+                                      "DuplicateWire", "StaleBase", "NextIdExhausted", "OverCap", "SpecOrder",
+                                      "DisconnectUnknownComponent", "DisconnectBadPin", "WireOrder", "AutoIdCollision"};
   const auto i = static_cast<unsigned>(f);
   return i < sizeof(names) / sizeof(names[0]) ? names[i] : "?";
 }
 
-ApplyResult expectedForFault(Fault f) {
-  ApplyResult r;
-  switch (f) {
-    case Fault::BadSpecDomain: case Fault::BadSpecSeed: case Fault::BadSpecUnused: r.status = Status::BadSpec; break;
-    case Fault::BadPinConnect: case Fault::BadPinReplace: r.status = Status::BadPin; break;
-    case Fault::UnknownRemove: case Fault::UnknownConnect: r.status = Status::UnknownComponent; break;
-    case Fault::DuplicateId: r.status = Status::DuplicateId; break;
-    case Fault::RetiredId: r.status = Status::RetiredId; break;
-    case Fault::UnknownWire: r.status = Status::UnknownWire; break;
-    case Fault::DuplicateWire: r.status = Status::DuplicateWire; break;
-    case Fault::StaleBase: r.status = Status::StaleBatch; break;
-    case Fault::NextIdExhausted: r.status = Status::LimitExceeded; break;
-    case Fault::kCount: break;
-  }
-  return r;
+namespace {
+
+// A pin of a component that does not exist: above every id the netlist ever handed out.
+Pin missingPin(const GenState& st, SplitMix64& rng) {
+  const ComponentId id = st.nextId + 3 + rng.pick(5);
+  return rng.coin() ? outPin(id) : inPin(id, rng.pick(3));
 }
 
-bool genFaultyBatch(SplitMix64& rng, GenState& st, Fault f, std::vector<EditOp>& ops) {
+// An index that no pin of any kind has (inputs end at 8 gates wide, and the output is kOut).
+Pin badPinOf(ComponentId c, SplitMix64& rng) { return inPin(c, 100 + rng.pick(100)); }
+
+// An op that creates `spec` with the id the batch would give it: add() when nothing before it fixed an id by hand, so
+// the id add() hands out is the one the op names.
+EditOp faultAdd(SplitMix64& rng, const GenState& st, const std::vector<EditOp>& prefix, Spec spec, unsigned seed) {
+  bool explicitBefore = false;
+  for (const EditOp& op : prefix) explicitBefore = explicitBefore || (op.kind == EditKind::Add && !op.viaAdd);
+  return opAdd(st.nextId, spec, seed, !explicitBefore && rng.coin());
+}
+
+// A spec whose arity, Delay length or Clock period is above the default cap (01 section 7, B2); everything else about it
+// is as legal as it can be, or wrong in a way that the cap must win over (a high width outside 1..P-1).
+Spec overCapSpec(SplitMix64& rng) {
+  static const unsigned delays[] = {256, 257, 300, 1000, 65535};
+  static const unsigned arities[] = {9, 10, 16, 255, 256, 65535};
+  static const unsigned periods[] = {4097, 5000, 40000, 65535};
+  switch (rng.pick(3)) {
+    case 0: return specDelay(delays[rng.pick(5)]);
+    case 1: return specGate(static_cast<GateOp>(rng.pick(3)), rng.coin(), arities[rng.pick(6)]);
+    default: {
+      const unsigned p = periods[rng.pick(4)];
+      const unsigned h = rng.coin() ? (rng.coin() ? 0U : rng.coin() ? p : 65535U) : 1 + rng.pick(p - 1);
+      return specClock(p, h);
+    }
+  }
+}
+
+}  // namespace
+
+bool genFaultyBatch(SplitMix64& rng, GenState& st, Fault f, std::vector<EditOp>& ops, Status& want) {
   ops.clear();
-  if (rng.coin()) ops = genBatch(rng, st, 3);
+  want = Status::Ok;
+  if (f != Fault::AutoIdCollision && rng.coin()) ops = genBatch(rng, st, 3);
   auto pickComp = [&]() -> ComponentId {
     auto it = st.comps.begin();
     std::advance(it, static_cast<std::ptrdiff_t>(rng.pick(static_cast<unsigned>(st.comps.size()))));
     return it->first;
+  };
+  auto pickWire = [&]() -> Wire {
+    auto it = st.wires.begin();
+    std::advance(it, static_cast<std::ptrdiff_t>(rng.pick(static_cast<unsigned>(st.wires.size()))));
+    return *it;
+  };
+  auto realPin = [&]() -> Pin {
+    const std::vector<Pin> pins = st.allPins();
+    return pins[rng.pick(static_cast<unsigned>(pins.size()))];
   };
   switch (f) {
     case Fault::BadSpecDomain: {
@@ -532,22 +564,52 @@ bool genFaultyBatch(SplitMix64& rng, GenState& st, Fault f, std::vector<EditOp>&
         case 3: s = specDelay(1); s.p0 = 0; break;
         default: s = specCompare(CompareMode::Compare); s.p0 = 2; break;
       }
-      ops.push_back(opAdd(st.nextId, s, 0));
+      want = Status::BadSpec;
+      ops.push_back(faultAdd(rng, st, ops, s, 0));
       return true;
     }
     case Fault::BadSpecSeed: {
+      want = Status::BadSpec;
       switch (rng.pick(4)) {
-        case 0: ops.push_back(opAdd(st.nextId, specGate(GateOp::Or, false, 2), 7)); break;
-        case 1: ops.push_back(opAdd(st.nextId, specClock(4, 2), 4 + rng.pick(3))); break;
-        case 2: ops.push_back(opAdd(st.nextId, specLatch(), 3)); break;
-        default: ops.push_back(opAdd(st.nextId, specDelay(2), 16 + rng.pick(3))); break;
+        case 0: ops.push_back(faultAdd(rng, st, ops, specGate(GateOp::Or, false, 2), 7)); break;
+        case 1: ops.push_back(faultAdd(rng, st, ops, specClock(4, 2), 4 + rng.pick(3))); break;
+        case 2: ops.push_back(faultAdd(rng, st, ops, specLatch(), 3)); break;
+        default: ops.push_back(faultAdd(rng, st, ops, specDelay(2), 16 + rng.pick(3))); break;
       }
       return true;
     }
     case Fault::BadSpecUnused: {
       Spec s = rng.coin() ? specSensor() : specLatch();
       (rng.coin() ? s.p1 : s.p2) = 1;
-      ops.push_back(opAdd(st.nextId, s, 0));
+      want = Status::BadSpec;
+      ops.push_back(faultAdd(rng, st, ops, s, 0));
+      return true;
+    }
+    case Fault::OverCap: {
+      // LimitExceeded whatever else is wrong with the seed or the high width: the cap is judged first (B2). Through add()
+      // or replace() alike.
+      const Spec s = overCapSpec(rng);
+      const unsigned seed = rng.chance(1, 3) ? 200U + rng.pick(60000) : rng.pick(16);
+      want = Status::LimitExceeded;
+      if (!st.comps.empty() && rng.coin()) ops.push_back(opReplace(pickComp(), s, seed));
+      else ops.push_back(faultAdd(rng, st, ops, s, seed));
+      return true;
+    }
+    case Fault::SpecOrder: {
+      // A malformed parameter is BadSpec even when the arity, the length or the period is also above its cap.
+      Spec s;
+      switch (rng.pick(7)) {
+        case 0: s = specGate(GateOp::Or, false, 300); s.p0 = 3; break;
+        case 1: s = specGate(GateOp::Xor, true, 9); s.p1 = 2; break;
+        case 2: s = specDelay(300); s.p1 = 1; break;
+        case 3: s = specDelay(65535); s.p2 = 1; break;
+        case 4: s = specClock(5000, 2); s.p2 = 1; break;
+        case 5: s = specClock(1, 1); break;
+        default: s = specClock(0, 0); break;
+      }
+      want = Status::BadSpec;
+      if (!st.comps.empty() && rng.coin()) ops.push_back(opReplace(pickComp(), s, 0));
+      else ops.push_back(faultAdd(rng, st, ops, s, 0));
       return true;
     }
     case Fault::BadPinConnect: {
@@ -555,23 +617,24 @@ bool genFaultyBatch(SplitMix64& rng, GenState& st, Fault f, std::vector<EditOp>&
       const ComponentId c = pickComp();
       Pin bad = inPin(c, 200);
       if (st.comps.find(c)->second.kind == Kind::Actuator && rng.coin()) bad = outPin(c);
-      const std::vector<Pin> pins = st.allPins();
-      Pin other = pins[rng.pick(static_cast<unsigned>(pins.size()))];
+      Pin other = realPin();
       if (other == bad) other = inPin(c, 201);
+      want = Status::BadPin;
       ops.push_back(rng.coin() ? opConnect(bad, other) : opConnect(other, bad));
       return true;
     }
     case Fault::BadPinReplace: {
       if (st.wires.empty()) return false;
-      auto it = st.wires.begin();
-      std::advance(it, static_cast<std::ptrdiff_t>(rng.pick(static_cast<unsigned>(st.wires.size()))));
-      const Pin p = rng.coin() ? it->a : it->b;
+      const Wire w = pickWire();
+      const Pin p = rng.coin() ? w.a : w.b;
       // A spec that lacks the pin p: an actuator has no output, a const has no inputs.
       const Spec s = p.index == kOut ? specActuator() : specConst(0);
+      want = Status::BadPin;
       ops.push_back(opReplace(p.component, s, 0));
       return true;
     }
     case Fault::UnknownRemove:
+      want = Status::UnknownComponent;
       ops.push_back(opRemove(st.nextId + 5));
       return true;
     case Fault::UnknownConnect: {
@@ -579,12 +642,14 @@ bool genFaultyBatch(SplitMix64& rng, GenState& st, Fault f, std::vector<EditOp>&
       const ComponentId c = pickComp();
       const Spec& s = st.comps.find(c)->second;
       const Pin real = hasOutput(s) ? outPin(c) : inPin(c, 0);
+      want = Status::UnknownComponent;
       ops.push_back(opConnect(real, inPin(st.nextId + 7, 0)));
       return true;
     }
     case Fault::DuplicateId: {
       if (st.comps.empty()) return false;
       const ComponentId c = pickComp();
+      want = Status::DuplicateId;
       ops.push_back(opAdd(c, specSensor(), 0));
       return true;
     }
@@ -595,6 +660,7 @@ bool genFaultyBatch(SplitMix64& rng, GenState& st, Fault f, std::vector<EditOp>&
       ops.push_back(opRemove(c));
       st.apply(ops.back());
       ops.push_back(opAdd(c, s, restSeed(s)));
+      want = Status::RetiredId;
       return true;
     }
     case Fault::UnknownWire: {
@@ -604,6 +670,7 @@ bool genFaultyBatch(SplitMix64& rng, GenState& st, Fault f, std::vector<EditOp>&
         const Pin a = pins[rng.pick(static_cast<unsigned>(pins.size()))];
         const Pin b = pins[rng.pick(static_cast<unsigned>(pins.size()))];
         if (a == b || st.wires.count(makeWire(a, b)) != 0) continue;
+        want = Status::UnknownWire;
         ops.push_back(opDisconnect(a, b));
         return true;
       }
@@ -611,9 +678,87 @@ bool genFaultyBatch(SplitMix64& rng, GenState& st, Fault f, std::vector<EditOp>&
     }
     case Fault::DuplicateWire: {
       if (st.wires.empty()) return false;
-      auto it = st.wires.begin();
-      std::advance(it, static_cast<std::ptrdiff_t>(rng.pick(static_cast<unsigned>(st.wires.size()))));
-      ops.push_back(rng.coin() ? opConnect(it->a, it->b) : opConnect(it->b, it->a));
+      const Wire w = pickWire();
+      want = Status::DuplicateWire;
+      ops.push_back(rng.coin() ? opConnect(w.a, w.b) : opConnect(w.b, w.a));
+      return true;
+    }
+    case Fault::DisconnectUnknownComponent: {
+      // B4: disconnect judges a pin like connect does, so a wire that names a missing component is UnknownComponent and
+      // not UnknownWire, also when the other pin is bad as well (pin a is judged first, component before pin).
+      if (st.comps.empty()) return false;
+      want = Status::UnknownComponent;
+      switch (rng.pick(6)) {
+        case 0: ops.push_back(opDisconnect(missingPin(st, rng), realPin())); return true;
+        case 1: ops.push_back(opDisconnect(realPin(), missingPin(st, rng))); return true;
+        case 2: ops.push_back(opDisconnect(missingPin(st, rng), missingPin(st, rng))); return true;
+        case 3: ops.push_back(opDisconnect(missingPin(st, rng), badPinOf(pickComp(), rng))); return true;
+        default: {
+          // the realistic one: a component is removed and, in the same batch, one of its wires is disconnected
+          if (st.wires.empty()) return false;
+          const Wire w = pickWire();
+          ops.push_back(opRemove(rng.coin() ? w.a.component : w.b.component));
+          st.apply(ops.back());
+          ops.push_back(rng.coin() ? opDisconnect(w.a, w.b) : opDisconnect(w.b, w.a));
+          return true;
+        }
+      }
+      return false;
+    }
+    case Fault::DisconnectBadPin: {
+      if (st.comps.empty()) return false;
+      const ComponentId c = pickComp();
+      want = Status::BadPin;
+      switch (rng.pick(5)) {
+        case 0: ops.push_back(opDisconnect(badPinOf(c, rng), realPin())); return true;
+        case 1: ops.push_back(opDisconnect(realPin(), badPinOf(c, rng))); return true;
+        case 2: {
+          const Pin p = rng.coin() ? realPin() : badPinOf(c, rng);
+          ops.push_back(opDisconnect(p, p));   // a pin to itself, valid or not
+          return true;
+        }
+        case 3: ops.push_back(opDisconnect(badPinOf(c, rng), missingPin(st, rng))); return true;   // a is judged first
+        default: {
+          for (const auto& [id, spec] : st.comps) {   // an actuator has no output pin
+            if (spec.kind != Kind::Actuator) continue;
+            ops.push_back(rng.coin() ? opDisconnect(outPin(id), realPin()) : opDisconnect(realPin(), outPin(id)));
+            return true;
+          }
+          ops.push_back(opDisconnect(badPinOf(c, rng), realPin()));
+          return true;
+        }
+      }
+      return false;
+    }
+    case Fault::WireOrder: {
+      // Two defects in one wire: the first pin is judged completely before the second, for connect and disconnect alike.
+      if (st.comps.empty()) return false;
+      const ComponentId c = pickComp();
+      const bool badFirst = rng.coin();
+      const Pin bad = badPinOf(c, rng);
+      const Pin gone = missingPin(st, rng);
+      const Pin a = badFirst ? bad : gone;
+      const Pin b = badFirst ? gone : bad;
+      want = badFirst ? Status::BadPin : Status::UnknownComponent;
+      ops.push_back(rng.coin() ? opConnect(a, b) : opDisconnect(a, b));
+      return true;
+    }
+    case Fault::AutoIdCollision: {
+      // add() gives base + the add() calls so far; an explicit id in that place collides when the add() reaches it, and the
+      // collision is what apply reports: DuplicateId, or RetiredId when the explicit one was removed again.
+      const ComponentId base = st.nextId;
+      const unsigned before = rng.pick(3);
+      for (unsigned i = 0; i < before; ++i) {
+        const Spec first = genSpec(rng, false);
+        ops.push_back(opAdd(base + i, first, genSeed(rng, first), true));
+      }
+      const Spec taken = genSpec(rng, false);
+      ops.push_back(opAdd(base + before, taken, genSeed(rng, taken), false));
+      const bool removed = rng.coin();
+      if (removed) ops.push_back(opRemove(base + before));
+      const Spec late = genSpec(rng, false);
+      ops.push_back(opAdd(base + before, late, genSeed(rng, late), true));
+      want = removed ? Status::RetiredId : Status::DuplicateId;
       return true;
     }
     case Fault::StaleBase: case Fault::NextIdExhausted: case Fault::kCount: return false;

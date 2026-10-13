@@ -247,9 +247,12 @@ namespace {
 class SimPacer final : public Pacer {
  public:
   SimPacer(std::uint32_t step, std::uint32_t max) : p_(step, max) {}
+  explicit SimPacer(slg::host::StepPacer p) : p_(p) {}
   std::uint32_t advance(std::uint32_t elapsedMicros, bool paused) override { return p_.advance(elapsedMicros, paused); }
   std::uint64_t droppedSteps() const override { return p_.droppedSteps(); }
   std::uint64_t pausedMicros() const override { return p_.pausedMicros(); }
+  std::uint64_t accumulatedMicros() const override { return p_.accumulatedMicros(); }
+  std::uint32_t stepMicros() const override { return p_.stepMicros(); }
 
  private:
   slg::host::StepPacer p_;
@@ -265,7 +268,7 @@ slg::host::DriverOptions toSlgOptions(const DriverOptions& o) {
 class SimDriver final : public Driver {
  public:
   SimDriver(std::unique_ptr<slg::Simulator> sim, const DriverOptions& opt)
-      : sim_(std::move(sim)), drv_(std::make_unique<slg::host::FrameDriver>(*sim_, toSlgOptions(opt))) {}
+      : options_(toSlgOptions(opt)), sim_(std::move(sim)), drv_(std::make_unique<slg::host::FrameDriver>(*sim_, options_)) {}
 
   Status apply(const std::vector<EditOp>& ops) override {
     slg::EditBatch b = sim_->newBatch();
@@ -296,8 +299,25 @@ class SimDriver final : public Driver {
     const auto s = sim_->commands();
     return std::vector<Signal>(s.begin(), s.end());
   }
+  std::uint32_t simClamped() const override { return sim_->clampedSamples(); }
+  Status simApply(const std::vector<EditOp>& ops) override {
+    slg::EditBatch b = sim_->newBatch();
+    fill(b, ops);
+    return fromSlg(sim_->apply(b));
+  }
+  Status adopt(const std::vector<std::uint8_t>& simBlob) override {
+    const slg::Limits limits = sim_->netlist().limits();
+    auto fresh = std::make_unique<slg::Simulator>(limits, 0);
+    const slg::Status s = slg::Simulator::decode(view(simBlob), limits, *fresh);
+    if (s != slg::Status::Ok) return fromSlg(s);
+    drv_.reset();   // the old driver points into the old simulator
+    sim_ = std::move(fresh);
+    drv_ = std::make_unique<slg::host::FrameDriver>(*sim_, options_);
+    return Status::Ok;
+  }
 
  private:
+  slg::host::DriverOptions options_;
   std::unique_ptr<slg::Simulator> sim_;
   std::unique_ptr<slg::host::FrameDriver> drv_;
 };
@@ -307,6 +327,12 @@ class SimDriver final : public Driver {
 std::unique_ptr<Pacer> makePacer(std::uint32_t stepMicros, std::uint32_t maxStepsPerCall) {
   return std::make_unique<SimPacer>(stepMicros, maxStepsPerCall);
 }
+
+std::unique_ptr<Pacer> makePacerForHost(std::uint32_t hostStepMicros, std::uint32_t maxStepsPerCall) {
+  return std::make_unique<SimPacer>(slg::host::StepPacer::forHostStep(hostStepMicros, maxStepsPerCall));
+}
+
+std::uint32_t effectiveStepMicros(std::uint32_t hostStepMicros) { return slg::host::effectiveStepMicros(hostStepMicros); }
 
 std::int64_t fullness(std::int64_t num, std::int64_t den) {
   return static_cast<std::int64_t>(slg::host::fullness(num, den));

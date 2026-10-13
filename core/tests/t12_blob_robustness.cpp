@@ -5,8 +5,9 @@
 //  - invariants broken with the tail recomputed (Gate state 7, Clock phase >= P, Delay slot 16, nextId <= a
 //    present id, an unnormalized wire, ...) give FormatCorrupt;
 //  - a version above the supported one gives FormatTooNew without looking further (a bad tail included);
-//  - every limit exceeded gives LimitExceeded; random mutations with a recomputed tail are classified like the
-//    reference decoder (the strict reading of 02 section 6.3) and never crash (run it under the sanitizers).
+//  - every limit exceeded gives LimitExceeded (a parameter above its cap included, ambiguities B2); random mutations
+//    with a recomputed tail are classified, exactly, like the reference decoder (the order of 02 section 6.3) and never
+//    crash (run it under the sanitizers).
 // Not claimed: changes of several bytes that happen to preserve the tail.
 #include <algorithm>
 #include <cstdlib>
@@ -229,9 +230,7 @@ SLG_PROPERTY(T12_blob_robustness, 12, "decode is strict and total: round trip, o
       Status got = Status::Ok;
       const std::string why = checkDecode(factory, small, v.bytes, p.lim, p.name, &got);
       SLG_CHECK_MSG(ctx, why.empty(), why);
-      const bool paramLimit = std::string(p.name) == "maxDelay" || std::string(p.name) == "maxClockPeriod";
-      SLG_CHECK_MSG(ctx, got == Status::LimitExceeded || (paramLimit && got == Status::FormatCorrupt),
-                    cat(p.name, " exceeded: decode answered ", statusName(got)));
+      SLG_CHECK_MSG(ctx, got == Status::LimitExceeded, cat(p.name, " exceeded: decode answered ", statusName(got), ", want LimitExceeded"));
     }
     // exactly at each limit is accepted, one below is not (the count limits answer LimitExceeded)
     {
@@ -254,15 +253,15 @@ SLG_PROPERTY(T12_blob_robustness, 12, "decode is strict and total: round trip, o
         if (c.spec.kind == Kind::Gate) widest = std::max<unsigned>(widest, c.spec.p2);
         if (c.spec.kind == Kind::Clock) period = std::max<unsigned>(period, c.spec.p0);
       }
-      struct Edge { const char* name; std::uint32_t count; void (*set)(Limits&, std::uint32_t); bool paramLimit; };
+      struct Edge { const char* name; std::uint32_t count; void (*set)(Limits&, std::uint32_t); };
       const Edge edges[] = {
-          {"maxComponents", u32(rich.comps.size()), [](Limits& l, std::uint32_t n) { l.maxComponents = n; }, false},
-          {"maxWires", u32(rich.wires.size()), [](Limits& l, std::uint32_t n) { l.maxWires = n; }, false},
-          {"maxDelayCells", cells, [](Limits& l, std::uint32_t n) { l.maxDelayCells = n; }, false},
-          {"maxNetPins", u32(maxNet), [](Limits& l, std::uint32_t n) { l.maxNetPins = n; }, false},
-          {"maxDelay", longest, [](Limits& l, std::uint32_t n) { l.maxDelay = u16(n); }, true},
-          {"maxArity", widest, [](Limits& l, std::uint32_t n) { l.maxArity = u8(n); }, true},
-          {"maxClockPeriod", period, [](Limits& l, std::uint32_t n) { l.maxClockPeriod = u16(n); }, true}};
+          {"maxComponents", u32(rich.comps.size()), [](Limits& l, std::uint32_t n) { l.maxComponents = n; }},
+          {"maxWires", u32(rich.wires.size()), [](Limits& l, std::uint32_t n) { l.maxWires = n; }},
+          {"maxDelayCells", cells, [](Limits& l, std::uint32_t n) { l.maxDelayCells = n; }},
+          {"maxNetPins", u32(maxNet), [](Limits& l, std::uint32_t n) { l.maxNetPins = n; }},
+          {"maxDelay", longest, [](Limits& l, std::uint32_t n) { l.maxDelay = u16(n); }},
+          {"maxArity", widest, [](Limits& l, std::uint32_t n) { l.maxArity = u8(n); }},
+          {"maxClockPeriod", period, [](Limits& l, std::uint32_t n) { l.maxClockPeriod = u16(n); }}};
       for (const Edge& e : edges) {
         Limits at;
         e.set(at, e.count);
@@ -278,7 +277,7 @@ SLG_PROPERTY(T12_blob_robustness, 12, "decode is strict and total: round trip, o
         Limits below;
         e.set(below, e.count - 1);
         why = checkDecode(factory, fresh, v.bytes, below, e.name, &got);
-        SLG_CHECK_MSG(ctx, why.empty() && (got == Status::LimitExceeded || (e.paramLimit && got == Status::FormatCorrupt)),
+        SLG_CHECK_MSG(ctx, why.empty() && got == Status::LimitExceeded,
                       cat(e.name, " = ", e.count - 1, " (one below what the blob holds) must be refused as LimitExceeded, got ", statusName(got), " ", why));
       }
     }
@@ -288,7 +287,7 @@ SLG_PROPERTY(T12_blob_robustness, 12, "decode is strict and total: round trip, o
     refreshTail(huge);
     Status got = Status::Ok;
     const std::string why = checkDecode(factory, v, huge, Limits{}, "huge component count", &got);
-    SLG_CHECK_MSG(ctx, why.empty() && (got == Status::LimitExceeded || got == Status::FormatCorrupt), cat("huge component count: ", why, statusName(got)));
+    SLG_CHECK_MSG(ctx, why.empty() && got == Status::LimitExceeded, cat("huge component count: ", why, statusName(got), ", want LimitExceeded"));
   }
   // random mutations, tail mostly recomputed: same classification as the strict reference, no crash, no half-state
   forEachCase(ctx, ctx.cases(1, 1) * 8, [&](std::uint64_t, SplitMix64& rng) {

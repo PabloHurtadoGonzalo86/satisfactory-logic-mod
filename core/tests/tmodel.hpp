@@ -83,11 +83,12 @@ unsigned stateSize(const Spec& s) noexcept;      // bytes of state in the blob (
 std::uint16_t restSeed(const Spec& s) noexcept;  // 01 section 6.1, last column
 std::uint64_t stateSpaceSize(const Spec& s) noexcept;   // |S_c|, saturating at 2^62
 
-// How a spec/seed pair relates to 01 section 3, 6.1 and 7. OverLimit parameters are those the catalog
-// bounds by a configurable limit (arity, Delay length, Clock period); the spec does not say whether
-// they report BadSpec or LimitExceeded, so tests accept both for them.
-enum class SpecCheck : std::uint8_t { Ok, BadDomain, OverLimit };
-SpecCheck checkSpec(const Spec& s, unsigned seed, const Limits& lim) noexcept;
+// The status the spec gives a parameter set, and a parameter set with its seed. BadSpec: a malformed parameter (01 section 3,
+// p0..p2 unused = 0) or a seed outside its domain (01 section 6.1, B1); LimitExceeded: arity, Delay length or Clock period
+// above its Limits cap, whatever the catalog range says (01 section 7, B2). Order of the checks: malformed parameters, the
+// caps (the Clock period before its high width), then the seed.
+Status checkParams(const Spec& s, const Limits& lim) noexcept;
+Status checkSpec(const Spec& s, unsigned seed, const Limits& lim) noexcept;
 
 struct CompDef {
   ComponentId id = 0;

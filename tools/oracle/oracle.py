@@ -407,6 +407,7 @@ class World:
         self.wires = set()
         self.next_id = 1
         self.retired = set()
+        self.adds = 0  # llamadas a add() del lote en curso
 
     def copy(self):
         w = World()
@@ -421,32 +422,33 @@ class World:
         self.specs[cid] = spec
         self.states[cid] = initial_state(spec, seed)
 
+    def _create(self, cid, spec, seed, base, limits):
+        if cid in self.specs:
+            return Status.DuplicateId
+        if cid < base or cid in self.retired:
+            return Status.RetiredId
+        if cid >= 0xFFFFFFFF:
+            return Status.LimitExceeded
+        status = validate(spec, seed, limits)
+        if status != Status.Ok:
+            return status
+        self._insert(cid, spec, seed)
+        self.next_id = max(self.next_id, cid + 1)
+        return Status.Ok
+
     def apply_op(self, op, base, limits):
         name = op[0]
         if name == "add":
-            if self.next_id >= 0xFFFFFFFF:
-                return Status.LimitExceeded
             _, spec, seed = op
-            status = validate(spec, seed, limits)
-            if status != Status.Ok:
-                return status
-            self._insert(self.next_id, spec, seed)
-            self.next_id += 1
-            return Status.Ok
-        if name == "add_with_id":
-            _, cid, spec, seed = op
-            if cid in self.specs:
-                return Status.DuplicateId
-            if cid < base or cid in self.retired:
-                return Status.RetiredId
+            # 02 seccion 2: el id es el nextId base mas los add() anteriores del lote; un id explicito no lo mueve.
+            cid = base + self.adds
+            self.adds += 1
             if cid >= 0xFFFFFFFF:
                 return Status.LimitExceeded
-            status = validate(spec, seed, limits)
-            if status != Status.Ok:
-                return status
-            self._insert(cid, spec, seed)
-            self.next_id = max(self.next_id, cid + 1)
-            return Status.Ok
+            return self._create(cid, spec, seed, base, limits)
+        if name == "add_with_id":
+            _, cid, spec, seed = op
+            return self._create(cid, spec, seed, base, limits)
         if name == "remove":
             cid = op[1]
             if cid not in self.specs:

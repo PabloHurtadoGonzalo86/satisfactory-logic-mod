@@ -25,26 +25,18 @@ struct StepOrder {
   std::vector<std::size_t> wires;
 };
 
+// What a batch answers. The status is exact: the reference reads every rule of 02 sections 4 to 6 down to the order in
+// which one operation's defects are judged (ambiguities.md B2, B4, B8), so a test never accepts "either of two".
 struct ApplyResult {
-  enum class Soft : std::uint8_t {
-    Exact,              // the spec names this status
-    ParamLimit,         // BadSpec or LimitExceeded (parameter bounded by a configurable limit)
-    AnyError,           // any status but Ok (the spec does not pin the code)
-    UnknownOrRetired    // UnknownComponent or RetiredId (operation on an id that was removed)
-  };
   Status status = Status::Ok;
-  Soft soft = Soft::Exact;
 };
-// Does a status returned by the core satisfy what the reference expects?
+// Does a status returned by the core satisfy what the reference expects? Plain equality.
 bool compatible(const ApplyResult& expected, Status got) noexcept;
 const char* describe(const ApplyResult& r) noexcept;
 
-// Outcome of the strict decode of 02 section 6.3, as the reference reads it. Where the spec leaves the
-// code open the result says which alternatives are acceptable.
+// Outcome of the strict decode of 02 section 6.3, in the order of the checks of the specification.
 struct DecodeResult {
   Status status = Status::Ok;
-  bool orLimit = false;     // FormatCorrupt or LimitExceeded are both acceptable (the spec does not order the checks)
-  bool maybeOk = false;     // the spec does not say whether this is rejected (id 0, nextId 0): Ok is also acceptable
 };
 bool compatible(const DecodeResult& expected, Status got) noexcept;
 std::string describe(const DecodeResult& r);
@@ -72,7 +64,8 @@ class ReferenceSim {
   explicit ReferenceSim(const Limits& lim = {}, std::uint32_t hostStepMicros = 0);
   void setQuirk(Quirk q) noexcept { quirk_ = q; }
 
-  // EditBatch semantics (02 sections 4 and 5): validated in order on a copy, all-or-nothing.
+  // EditBatch semantics (02 sections 4 and 5): validated in order on a copy, all-or-nothing; the limits of 01 section 7
+  // judge the netlist the batch leaves, after the last operation.
   ApplyResult apply(const std::vector<EditOp>& ops);
   ApplyResult applyWithBase(const std::vector<EditOp>& ops, std::uint32_t baseNextId);
 
@@ -97,7 +90,7 @@ class ReferenceSim {
   std::uint64_t stateHash() const;
   std::uint64_t structureHash() const;
   // Replaces the whole content (netlist, state, tick, nextId) with a decoded blob; false if a record
-  // cannot be interpreted. The retired-id set is not part of the blob and starts empty.
+  // cannot be interpreted.
   bool load(const BlobData& d);
   void setTick(Tick t) noexcept { tick_ = t; }
 
@@ -126,7 +119,6 @@ class ReferenceSim {
   std::uint32_t hostStep_ = 0;
   std::map<ComponentId, Comp> comps_;
   std::set<Wire> wires_;
-  std::set<ComponentId> retired_;
   std::uint32_t nextId_ = 1;
   Tick tick_ = 0;
   std::uint32_t clamped_ = 0;
