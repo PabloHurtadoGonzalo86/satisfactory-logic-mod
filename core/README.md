@@ -7,10 +7,10 @@ compila, se prueba y se vigila el núcleo; no repite la spec.
 ## Estructura
 
 ```
-core/include/slg/    cabeceras públicas (types, netlist, simulator, lint, host/*)
+core/include/slg/    cabeceras públicas (types, netlist, simulator, lint, host/*; host/cone_graph.hpp es un detalle de FrameDriver)
 core/src/            implementación; core/src/internal y core/src/host son parte de la misma biblioteca
 core/tests/          suite: un solo ejecutable, build/slg_tests (todos los core/tests/*.cpp)
-core/tests/mutants/  M01.patch ... y, si hace falta, equivalent.txt
+core/tests/mutants/  M01.patch ... M100.patch, equivalent.txt (lo que lee el script), equivalents.md (las pruebas) y README.md (la tabla)
 core/golden/         trazas doradas; las emite el oráculo (tools/oracle), ver core/golden/README.md
 core/bench/          slg_bench (03 §8)
 core/selfcheck/      slg_selfcheck (03 §9, comprobación de MSVC)
@@ -33,7 +33,7 @@ biblioteca estándar (probados con Python 3.14).
 make test                      # compila build/slg_tests con las banderas estrictas y lo ejecuta
 make test CXX=clang++ OPT=-O0
 make test-ubsan                # UBSan, se detiene en el primer aviso
-make test-asan                 # ASan + UBSan juntos
+make test-asan                 # ASan + UBSan juntos: solo en CI o en el PC del propietario, nunca en el VPS
 make forbidden                 # tokens prohibidos de 03 §9 en core/include y core/src
 make golden-oracle             # solo oráculo contra core/golden, sin compilar C++ (salvo un slg_run opcional)
 make golden                    # lo anterior y las pruebas golden de C++ (GOLDEN/*)
@@ -60,25 +60,41 @@ Las banderas son las de 03 §9 (`-std=c++20 -Wall -Wextra -Wpedantic -Werror -Ws
 si cambia el compilador o cualquier bandera. Las variantes de sanitizers añaden `-fno-sanitize-recover=all
 -D_GLIBCXX_ASSERTIONS -ftrivial-auto-var-init=pattern`, y `-fno-sanitize=vptr` porque vptr exige RTTI.
 
-## En este VPS (producción, unos 2 GB libres, sin clang ni cmake)
+## En este VPS (producción compartida, unos 2 GB libres, sin clang ni cmake)
 
-Solo corre una compilación o prueba a la vez, con prioridad baja y memoria acotada, siempre con el candado:
+Es una máquina de producción que se queda sin memoria con facilidad (OOM del kernel el 9 y el 13 de octubre) y que
+no es nuestra: aquí **ni ASan ni valgrind**, ni clang, libFuzzer, `-m32`, la matriz completa ni `N = 100000` del
+benchmark. Eso va a CI o al PC del propietario. Aquí solo se compila con `g++`, se prueba con pocos casos y se
+puede usar UBSan (`make test-ubsan SLG_CASES=50`). Política, para cualquier compilación o prueba:
 
 ```sh
-LOCK=/tmp/slg-build.lock      # el orquestador usa un fichero suyo; lo importante es que sea el mismo
-flock $LOCK nice -n 10 bash -c 'ulimit -v 2500000; cd /ruta/al/repo && make -j2 test SLG_CASES=200'
-flock $LOCK nice -n 10 bash -c 'ulimit -v 2500000; cd /ruta/al/repo && make -j2 test-ubsan SLG_CASES=200'
-# ASan no arranca bajo `ulimit -v`: sin él, y con pocos casos
-flock $LOCK nice -n 10 bash -c 'cd /ruta/al/repo && make -j2 test-asan SLG_CASES=50'
-# N = 100000 del benchmark: solo con límite explícito
-flock $LOCK nice -n 10 bash -c 'ulimit -v 2500000; cd /ruta/al/repo && SLG_BENCH_BIG=1 make bench'
+LOCK=/ruta/al/candado.lock      # el mismo fichero para todos los procesos y agentes que tocan el repo
+flock "$LOCK" nice -n 19 ionice -c3 /ruta/al/repo/scripts/guard.sh \
+  bash -c 'ulimit -v 1500000; cd /ruta/al/repo && SLG_CASES=100 make -j1 test'
 ```
 
-- Nunca más de `-j2`. Lo pesado (clang, libFuzzer, `-m32`, la matriz completa) va a CI o al PC del propietario.
-- `make mutants` toma el candado él mismo en cada paso: exporta `SLG_LOCK=$LOCK` y, si hace falta,
-  `SLG_ULIMIT_V=2500000` (KiB), y **no** lo envuelvas en otro `flock`. Si ya lo envolviste, lo detecta
-  (descriptor heredado) y no lo vuelve a pedir, así que tampoco se bloquea. Sin `SLG_LOCK` avisa y no toma ningún candado
-  (un `flock` exterior sí lo serializa). `JOBS=2` es el máximo aquí.
+- **Un solo proceso pesado a la vez**: el `flock` serializa, y no se lanzan bucles de espera ni procesos en segundo
+  plano que sobrevivan a la orden. `-j1` siempre; `SLG_CASES <= 100` (50 con UBSan).
+- **`nice -n 19`, `ionice -c3` y `ulimit -v 1500000`** (KiB) acotan prioridad, disco y memoria virtual. ASan no
+  arranca bajo `ulimit -v`: otra razón para dejarlo en CI.
+- **`scripts/guard.sh <orden>`** es el guarda de calma: espera (hasta unos 20 minutos, mirando cada 10 s) a que la
+  presión de memoria (`some avg10` de `/proc/pressure/memory`) sea inferior al 10 % y la carga de un minuto, a 12, y
+  entonces ejecuta la orden. Si el host no se calma sale con **código 75** y no ejecuta nada: se espera y se
+  reintenta, **nunca se salta el guarda** ni se baja el umbral.
+- Sin `docker` ni `sudo`; todo dentro del repositorio, y lo que se genere (copias, registros) en `build/`, que git
+  ignora.
+- `make mutants` ejecuta los mutantes de uno en uno y puede tardar horas aquí. Envuélvelo igual y añade
+  `MUTANT_GUARD=1` (el script espera al guarda antes de cada mutante y, si no se calma, para con código 75 tras
+  imprimir lo que ha hecho), `MUTANT_KEEP_BASE=1` (conserva `build/mutants/base`: solo se recompila lo que cambió) y
+  `MUTANT_TIMEOUT=120`:
+
+  ```sh
+  flock "$LOCK" nice -n 19 ionice -c3 /ruta/al/repo/scripts/guard.sh bash -c 'ulimit -v 1500000; \
+    cd /ruta/al/repo && SLG_CASES=100 MUTANT_TIMEOUT=120 MUTANT_KEEP_BASE=1 MUTANT_GUARD=1 JOBS=1 make mutants'
+  ```
+
+  Con código 75, relanza con `MUTANTS="Mnn Mmm ..."` para los que no llegaron a correr. Un `flock` exterior basta
+  para serializar; si además exportas `SLG_LOCK=$LOCK`, el script lo toma él mismo y detecta que ya lo tienes.
 
 ## Contratos que asume el Makefile
 
@@ -111,6 +127,24 @@ Son convenciones elegidas porque la spec no las fija; cada una es una variable o
   `// slg-allow(sort): <por qué las claves son únicas>` en la misma línea o la anterior; el resto no admite
   excepciones. Avisos que no fallan: `static` mutable y `thread_local`. Mira `core/include`, `core/src` y, si
   existe, `core/host`; no mira tests, bench ni selfcheck.
+
+## Lecturas del oráculo aplicadas (13-oct-2026)
+
+Donde la especificación admitía dos lecturas y el oráculo y el C++ leían distinto, rige la del oráculo
+([ambigüedades](../docs/spec/ambiguities.md) § 5, [decisiones](../docs/spec/04-decisiones.md) D28 a D35).
+Antes de este cierre la suite no lo veía: `ReferenceSim`, T11 y T12 aceptaban cualquiera de los dos estados;
+ahora cada uno espera el estado exacto del oráculo y los mutantes M72 a M77 fijan cada regla.
+
+| Punto | Qué rige | Dónde |
+|---|---|---|
+| B2, topes | el tope de `Limits` es la única cota superior: `LimitExceeded` sobre él, `BadSpec` solo para lo mal formado; `Clock`: `P < 2`, `P` contra el tope, `H`; `decode`: `LimitExceeded` o `FormatCorrupt` | `core/src/internal/spec_rules.cpp` |
+| B4, `disconnect` | juzga los pines como `connect` (pin `a` entero antes que `b`) y después `UnknownWire` | `core/src/netlist.cpp` |
+| B8, `decode` | cada conteo contra los bytes restantes por su cuenta; el total de ranuras de `Delay` y los pines por red, **al final** | `core/src/simulator_codec.cpp` |
+| D30, `add` | `add()` devuelve la base más las llamadas a `add` anteriores del lote; con los ids agotados, 0. **Aquí se movió el oráculo** (`World._create`), no el C++ | `core/src/netlist.cpp`, `tools/oracle/oracle.py` |
+| D31 a D35, `FrameDriver` | espera en pasos ejecutados, retención por cono, blob v1 emparejado con el `Simulator`, `runCall(0, …)` y adopción con un driver nuevo | `core/src/host/` y 02 §7 |
+
+El digest de `slg_selfcheck` no cambió con estas lecturas: el autotest solo usa `add`, lotes bien formados y bytes
+sustituidos sin recalcular la cola, así que no ejercita ninguna de ellas. Las cubre la suite, no el digest.
 
 ## CI
 

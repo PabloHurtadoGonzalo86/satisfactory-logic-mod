@@ -28,3 +28,27 @@ Estado: registro histórico. Lo escribió el agente que implementó `core/` leye
 - A14 StepPacer: arithmetic is 64-bit internally; 'acc' is kept untouched during a pause; stepMicros and maxStepsPerCall are clamped to >= 1; droppedSteps and pausedMicros are 64-bit.
 - A15 EditBatch semantics of replace: kind may change; every wired pin must exist in the new spec at that point of the batch (BadPin otherwise); state resets to the seed (Toggle gets p = 1); the id and wires are kept. A batch is judged in op order, so replace-then-disconnect of an invalid pin still fails.
 - A16 Spec-text tension noticed (no code consequence): 03 T12 'cada límite excedido da LimitExceeded' reads as the pure Limits rule, while 01 section 6.1/catalog ranges 'd 1..255' read as BadSpec; see A1. Also 03 5 says the oracle sees only 01 and 03, but the codec is defined in 02 (the oracle log already notes it).
+
+## Estado tras el arbitraje (13-oct-2026)
+
+Todo lo anterior es el informe original y no se ha editado: describe el núcleo **antes** del arbitraje, y varios de sus puntos ya no son ciertos. Esta tabla dice qué rige hoy (las decisiones D28 a D35 están en [04](04-decisiones.md); [ambigüedades.md](ambiguities.md) § 5 resume los conflictos con el oráculo). La numeración A1 a A16 es la del implementador y no coincide con la A1 a A11 de ambiguities.md (formato de texto): el punto de `disconnect` es aquí A3 y allí B4.
+
+| Punto | Estado hoy |
+|---|---|
+| Desviaciones y API | Vigente salvo la disposición del código, que 02 §1 describe ya como `core/src/host` y `core/include/slg/host`, y las adiciones del host (`kUnconfirmed`, `effectiveStepMicros`, `StepPacer::forHostStep`, los accesores del pacer y `cone_graph.hpp`), que 02 §2 ya lista |
+| A1 `validate` | **Sustituido** (D28, B2): un parámetro por encima de su tope de `Limits` es siempre `LimitExceeded`, y `classifyUpper` y las constantes del catálogo ya no existen. El `Clock` juzga `P < 2` o el parámetro no usado, `P` contra el tope y después `H` |
+| A2 `Const` y `Sensor` | Vigente (B1) |
+| A3 pines y `disconnect` | **Sustituido en `disconnect`** (D28, B4): juzga los pines como `connect` y solo después da `UnknownWire`. El resto (orden de un `connect`, `a == b`, entradas con entradas, `Actuator` sin salida) sigue vigente |
+| A4 ids explícitos | Vigente (B3, D27) **salvo** el valor de `add()`, que ya no es `max(base, mayor id + 1)` sino la base más las llamadas a `add` anteriores (D30); con los ids agotados devuelve 0 |
+| A5 límites | Vigente: se juzgan sobre la netlist final (B5). **Sustituida** la diferencia de `decode`: el total de ranuras de `Delay` se juzga al final (D29, B8) |
+| A6 orden de `decode` | **Sustituido en el punto de los conteos y los parámetros** (D28, D29): cada conteo se compara con los bytes restantes por su cuenta, un parámetro sobre su tope es `LimitExceeded` en cuanto se lee el registro, y los totales de `Delay` y de pines por red van los últimos. El resto del orden sigue vigente |
+| A7 lint | Vigente |
+| A8 `Pulse` | Vigente y confirmado por el oráculo (B9, resuelto en 02 §7.2) |
+| A9 sensores sin resolver | **Sustituido** (D31, D32): la espera se cuenta en pasos ejecutados y no suma `elapsedMicros`, y un sensor sin resolver retiene solo a los actuadores de cuyo cono forma parte |
+| A10 guarda de asentamiento | **Sustituido** (D32, D33): solo se retienen los actuadores cuyo cono cambió (tras un `apply`) o contiene un sensor que se resuelve, y la retención es el máximo con la que ya había |
+| A11 bordes del `FrameDriver` | Vigente (un actuador creado parte confirmado en su mando actual, `WrongPhase` en `runCall` y `decode` dentro de una llamada, reconciliación por `structureHash`) **salvo** `runCall(0, …)`, que ya no conserva las ofertas `Pulse` ni hace avanzar los temporizadores: descarta las `Pulse`, retiene las `Level` y no acredita espera (D35, D31) |
+| A12 blob del driver | **Sustituido** (D34): `38 + 6·S + 9·A + 8` bytes, con `tick`, `stateHash` y `structureHash` y una retención por actuador; ver 02 §7.5 |
+| A13 `clampedSamples` | **Sustituido** (D34): una lectura sobre 15 suma una vez, no una por paso |
+| A14 `StepPacer` | Vigente; el paso 0 («sin fijar») se traduce con `effectiveStepMicros` y `StepPacer::forHostStep` (D35) |
+| A15 `replace` | Vigente |
+| A16 tensión del texto | Resuelta: 03 T12 y 01 §7 dicen lo mismo (B2) |

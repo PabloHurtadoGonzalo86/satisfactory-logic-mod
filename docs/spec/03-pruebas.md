@@ -1,6 +1,6 @@
 # 03. Pruebas
 
-Estado: borrador de diseño del 13-oct-2026. Nada de esto se ha ejecutado: el núcleo aún no existe. Semántica en [01](01-semantica.md), API en [02](02-api-nucleo.md), decisiones en [04](04-decisiones.md).
+Estado: diseño del 13-oct-2026, ya implementado: la batería vive en `core/tests/` y el modo de ejecutarla y vigilarla, en `core/README.md`; qué se decidió al arbitrar las ambigüedades que halló el oráculo consta en [04](04-decisiones.md) §5. Semántica en [01](01-semantica.md), API en [02](02-api-nucleo.md), decisiones en [04](04-decisiones.md).
 
 ## 1. Principios
 
@@ -86,11 +86,11 @@ Estados: `s`; `[f1,f2,…]` para `Delay`; `q/p` para `Toggle`; `c` para `Clock`;
 
 ## 6. Fuzz y semillas
 
-PRNG propio SplitMix64 (algoritmo público; un test fija sus primeras salidas con vectores del oráculo) y Fisher–Yates propio; prohibidos `<random>`, `std::shuffle` y `rand`. El caso `i` de `Tn` usa `SplitMix64(base_Tn XOR i)` con `base_Tn = 2026101300 + n`. En CI `SLG_CASES = 2000`; de noche 100000, con base derivada de la fecha e impresa. Un fallo imprime `SLG_SEED`, `SLG_CASE` y el escenario reducido por delta-debugging, listo para `core/golden/regressions/`. Los generadores cubren DAG, redes cíclicas, anillos, cadenas de 10⁵, fan-in ancho, latches y lotes de edición, siempre con pines sin cable, autolazos y varios conductores. Fuzz de bytes: `fuzz_decode`, `fuzz_lnet` y `fuzz_frame` (ediciones y marcos, comparando `Simulator` y `ReferenceSim`), con libFuzzer (clang, ASan+UBSan) en CI. En el VPS, `SLG_CASES = 200` con UBSan.
+PRNG propio SplitMix64 (algoritmo público; un test fija sus primeras salidas con vectores del oráculo) y Fisher–Yates propio; prohibidos `<random>`, `std::shuffle` y `rand`. El caso `i` de `Tn` usa `SplitMix64(base_Tn XOR i)` con `base_Tn = 2026101300 + n`. En CI `SLG_CASES = 2000`; de noche 100000, con base derivada de la fecha e impresa. Un fallo imprime `SLG_SEED`, `SLG_CASE` y el escenario reducido por delta-debugging, listo para `core/golden/regressions/`. Los generadores cubren DAG, redes cíclicas, anillos, cadenas de 10⁵, fan-in ancho, latches y lotes de edición, siempre con pines sin cable, autolazos y varios conductores. Fuzz de bytes: `fuzz_decode`, `fuzz_lnet` y `fuzz_frame` (ediciones y marcos, comparando `Simulator` y `ReferenceSim`), con libFuzzer (clang, ASan+UBSan) en CI. En el VPS, `SLG_CASES <= 100` (50 con UBSan), siempre bajo `scripts/guard.sh` y sin ASan (`core/README.md`).
 
 ## 7. Mutantes (al menos 12; aquí 14)
 
-Cada mutante es un parche de una línea, `tests/mutants/Mnn.patch`, que un script nocturno aplica a una copia temporal del árbol (sin macros en el código de producción). Todo mutante debe hacer fallar el test indicado; un superviviente es un test que falta o un equivalente demostrado en `mutants.md`.
+Cada mutante es un parche de una línea, `tests/mutants/Mnn.patch`, que un script nocturno aplica a una copia temporal del árbol (sin macros en el código de producción). Todo mutante debe hacer fallar el test indicado; un superviviente es un test que falta o un equivalente demostrado en `mutants.md`. La implementación tiene más: M01 a M100 en `core/tests/mutants/` (los 14 de esta tabla más los que añadieron la revisión de mutación, el arbitraje de las ambigüedades y la política del `FrameDriver`), con la tabla completa y lo que mata a cada uno en su `README.md`, y los equivalentes demostrados en `equivalents.md`.
 
 | Id | Mutante | Lo mata |
 |---|---|---|
