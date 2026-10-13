@@ -79,6 +79,9 @@ nav:
       - 3. Plan de pruebas: spec/03-pruebas.md
       - 4. Decisiones del diseño: spec/04-decisiones.md
       - 5. Ambigüedades detectadas al implementar: spec/ambiguities.md
+  - Prueba mínima en el PC:
+      - Objetivos y criterios: spike/01-objetivos-y-criterios.md
+      - Procedimiento para el propietario: spike/02-procedimiento-propietario.md
   - Decisiones del proyecto: decisions/0001-decisiones-iniciales.md
   - Investigación:
       - Resumen y veredictos: research/README.md

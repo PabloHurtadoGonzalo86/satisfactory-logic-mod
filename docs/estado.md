@@ -11,7 +11,7 @@ las demás secciones de la web.
 | 1. Teoría | 7 documentos en español, de binario y hexadecimal a máquinas de estado; cada cifra la genera y comprueba un script | **Hecha y revisada**: una revisión independiente halló 22 problemas de prosa y se corrigieron ([revisión](review/theory-review-20261013.md)) |
 | 2. Especificación del núcleo | Semántica, API, plan de pruebas y decisiones; tres arquitectos propusieron, dos jueces puntuaron | **Hecha**: [especificación](spec/01-semantica.md) |
 | 3. Núcleo del simulador (C++ sin Unreal) | Implementación, oráculo independiente en Python, tests, mutantes y revisiones | **En curso**: oráculo e implementación escritos; integración y pruebas en marcha |
-| 4. Prueba mínima en el PC del propietario | Qué puede y qué no puede hacer un mod en el juego (tipo de cable, gancho de tick, edificio nativo en servidor Linux) | Pendiente; es el mayor riesgo del proyecto |
+| 4. Prueba mínima en el PC del propietario | Qué puede y qué no puede hacer un mod en el juego (tipo de cable, gancho de tick, edificio nativo en servidor Linux) | **Preparada, sin ejecutar**: criterios, procedimiento y un plugin cuyos 300 símbolos se auditaron contra el SDK ([prueba mínima](spike/01-objetivos-y-criterios.md)). Falta que el propietario la ejecute; es el mayor riesgo del proyecto |
 | 5. Adaptador de Unreal | Subsistema de servidor, sensores y actuadores, edificios | Pendiente de la fase 4 |
 | 6. Publicación | Mod en ficsit.app con declaración de uso de IA | Pendiente; requiere la cuenta del propietario. La **web y el repositorio ya son públicos** desde el 13-oct-2026 |
 
