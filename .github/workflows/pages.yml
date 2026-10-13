@@ -28,7 +28,7 @@ jobs:
           python-version: "3.12"
       - name: Install the pinned documentation toolchain
         run: python -m pip install --disable-pip-version-check -r requirements-docs.txt
-      - name: Build the site (strict: any broken link or anchor fails)
+      - name: "Build the site (strict mode: any broken link or anchor fails)"
         run: mkdocs build --strict --site-dir site
       - name: Upload the site for Pages
         if: github.event_name != 'pull_request'
