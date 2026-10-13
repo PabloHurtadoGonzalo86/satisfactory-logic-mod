@@ -1,0 +1,14 @@
+ltrace 1
+row 0 in | st 1=0 2=0 | cmd 2=0 | h=62385B09740291CE
+row 1 in | st 1=1 2=0 | cmd 2=0 | h=4344600069190DFF
+row 2 in | st 1=2 2=0 | cmd 2=0 | h=968EC5C315DF89CC
+row 3 in | st 1=3 2=0 | cmd 2=0 | h=779ACABA0AF605FD
+row 4 in | st 1=4 2=15 | cmd 2=15 | h=E64D31E548455333
+row 5 in | st 1=5 2=15 | cmd 2=15 | h=C75940DC3D5BE062
+row 6 in | st 1=0 2=15 | cmd 2=15 | h=623856097402894F
+row 7 in | st 1=1 2=0 | cmd 2=0 | h=4344600069190DFF
+row 8 in | st 1=2 2=0 | cmd 2=0 | h=968EC5C315DF89CC
+row 9 in | st 1=3 2=0 | cmd 2=0 | h=779ACABA0AF605FD
+row 10 in | st 1=4 2=15 | cmd 2=15 | h=E64D31E548455333
+row 11 in | st 1=5 2=15 | cmd 2=15 | h=C75940DC3D5BE062
+row 12 in | st 1=0 2=15 | cmd 2=15 | h=623856097402894F

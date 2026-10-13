@@ -1,0 +1,4 @@
+ltrace 1
+row 0 in | st 3=0 | cmd 3=0 | h=9D5948AFDE5CD714
+row 1 in | st 3=9 | cmd 3=9 | h=9D5941AFDE5CCB2F
+row 2 in | st 3=9 | cmd 3=9 | h=9D5941AFDE5CCB2F

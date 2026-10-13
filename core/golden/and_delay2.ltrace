@@ -1,0 +1,10 @@
+ltrace 1
+row 0 in 1=0 2=0 | st 3=0 4=[0,0] 5=0 | cmd 5=0 | h=B78AE5D99A9F168E
+row 1 in 1=9 2=0 | st 3=0 4=[0,0] 5=0 | cmd 5=0 | h=B78AE5D99A9F168E
+row 2 in 1=9 2=5 | st 3=0 4=[0,0] 5=0 | cmd 5=0 | h=B78AE5D99A9F168E
+row 3 in 1=9 2=5 | st 3=15 4=[0,0] 5=0 | cmd 5=0 | h=693E39005800CAC9
+row 4 in 1=0 2=5 | st 3=15 4=[0,15] 5=0 | cmd 5=0 | h=A7D8E674AFC48180
+row 5 in 1=0 2=0 | st 3=0 4=[15,15] 5=0 | cmd 5=0 | h=8E6BCEECB9392C48
+row 6 in 1=0 2=0 | st 3=0 4=[15,0] 5=15 | cmd 5=15 | h=FAA961D344383BFC
+row 7 in 1=0 2=0 | st 3=0 4=[0,0] 5=15 | cmd 5=15 | h=B78AE0D99A9F0E0F
+row 8 in 1=0 2=0 | st 3=0 4=[0,0] 5=0 | cmd 5=0 | h=B78AE5D99A9F168E

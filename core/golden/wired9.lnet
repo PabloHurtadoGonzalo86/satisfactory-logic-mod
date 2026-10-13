@@ -1,0 +1,6 @@
+lnet 1
+c 1 const v=9
+c 2 const v=9
+c 3 actuator
+w 1.o 3.0
+w 2.o 3.0

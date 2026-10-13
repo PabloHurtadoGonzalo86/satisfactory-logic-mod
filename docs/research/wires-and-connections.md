@@ -1,0 +1,806 @@
+# Wires and connections
+
+_Generated from `data/wires-and-connections.json` by `tools/render_research.py`; do not edit by hand. Research run of 2026-10-13. Claims are the researcher's; verdicts are from independent skeptics told to refute them. Wording is kept verbatim (English)._
+
+## Summary
+
+Vanilla already has a generic wire/circuit layer, and one third-party library shows it can host a second network type. FicsIt-Networks and Circuitry show the alternatives.
+
+(1) At SDK d2162c99 (identical to SML master on 2026-10-13) both UFGCircuitConnectionComponent and AFGBuildableWire carry a mCircuitType, and the headers say "power or logic". UFGCircuit is abstract; AFGWireHologram filters connectors by circuit type. KMods' published library "KMods Library - Code" (MIT source, SML ^3.12.0) builds a whole second network this way: custom circuit, connector, wire and wire hologram. It derives from UFGPowerCircuit and fakes power production. Every SDK .cpp is an auto-generated stub, so the runtime behaviour of a direct UFGCircuit subclass (ticking via circuit groups, split, save, uninstall) is UNVERIFIED and needs a spike on the owner's PC. Vanilla circuits give connected-component membership (a shared bus), not directed per-wire signals; gates need separate input and output circuits.
+
+(2) FicsIt-Networks (GPL-3.0) reuses none of it. It has its own AFINNetworkCircuit actor with a recursive DFS over IFINNetworkCircuitNode, an AFINNetworkCable derived from AFGBuildable, and its own hologram. Signals go through a sender-to-listener subsystem, not along cables.
+
+(3) Circuitry/FicsitWiremod (no licence file) stores per-input UObject* + FName pull links, spline wire actors, per-gate Tick and RCOs. It already targets SML ^3.12.0 and game >=502094, so it is a design-only reference and a niche overlap. Other precedents: DaisyChainEverything mutates mMaxNumConnectionLinks; Cable Choices Plus subclasses AFGBuildableWire in C++; SmartWirelessLighting keeps a replicated link list in a hub.
+
+(4) Alternatives are hidden connections (code-only, SaveGame but not Replicated), actor-reference link tools (client edits need an RCO), numeric channels (Factorio precedent; no SMR example found) and adjacency (Minecraft).
+
+(5) Native defaults are 10000 cm wire length and 1 link per connector. The wiki gives poles 4/7/10 links and wires 100 m/300 m. No published wire or circuit cap and no benchmark was found, only code hints such as "full rebuild (slow)".
+
+Recommendation: spike option A on the PC; fall back to a FIN-style own graph; add hidden-connection or channel wireless and an RCO-backed link tool.
+
+## Claims at a glance
+
+| Id | Confidence | Decision-driving | Skeptic verdicts |
+| --- | --- | --- | --- |
+| c1 | verified-primary | yes | confirmed, confirmed |
+| c2 | verified-primary | yes | confirmed, partially-correct |
+| c3 | verified-primary | yes | confirmed, partially-correct |
+| c4 | unverified | yes | partially-correct, unverifiable |
+| c5 | verified-primary | yes | confirmed, confirmed |
+| c6 | verified-primary | yes | confirmed, confirmed |
+| c7 | verified-primary | yes | partially-correct, partially-correct |
+| c8 | verified-primary | yes | confirmed, confirmed |
+| c9 | verified-primary | no | not verified (not decision-driving) |
+| c10 | verified-primary | no | not verified (not decision-driving) |
+| c11 | secondary | no | not verified (not decision-driving) |
+| c12 | verified-primary | no | not verified (not decision-driving) |
+| c13 | verified-primary | no | not verified (not decision-driving) |
+| c14 | verified-primary | no | not verified (not decision-driving) |
+| c15 | verified-primary | no | not verified (not decision-driving) |
+| c16 | verified-primary | no | not verified (not decision-driving) |
+| c17 | verified-primary | no | not verified (not decision-driving) |
+| c18 | verified-primary | no | not verified (not decision-driving) |
+| c19 | verified-primary | no | not verified (not decision-driving) |
+| c20 | verified-primary | no | not verified (not decision-driving) |
+| c21 | verified-primary | no | not verified (not decision-driving) |
+| c22 | verified-primary | no | not verified (not decision-driving) |
+| c23 | verified-primary | no | not verified (not decision-driving) |
+| c24 | unverified | no | not verified (not decision-driving) |
+| c25 | secondary | no | not verified (not decision-driving) |
+| c26 | verified-primary | no | not verified (not decision-driving) |
+| c27 | verified-primary | no | not verified (not decision-driving) |
+| c28 | verified-primary | no | not verified (not decision-driving) |
+
+## Claims in detail
+
+### c1 (verified-primary, decision-driving)
+
+Vanilla wires and connectors are typed by a per-class circuit type. UFGCircuitConnectionComponent and AFGBuildableWire each have a mCircuitType (TSubclassOf<UFGCircuit>, EditDefaultsOnly), the comments name 'logic' as an intended circuit type, and connecting two different types is declared illegal. The class hierarchy is UFGConnectionComponent -> UFGCircuitConnectionComponent -> UFGPowerConnectionComponent; the power connector's stub constructor sets mCircuitType = UFGPowerCircuit. SML master HEAD equals the owner's pinned commit d2162c99 ('Update headers to CL502094', 2026-08-11), so main and the pin agree. Design intent only; the runtime is closed source (see c4).
+
+Evidence:
+
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGCircuitConnectionComponent.h>
+
+  ```text
+  E.g. power connections can belong to power circuits and logic connection can belong to logic circuits.
+  ```
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGCircuitConnectionComponent.h>
+
+  ```text
+  Note that it is illegal to try to connect two connections with different types.
+  ```
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/Buildables/FGBuildableWire.h>
+
+  ```text
+  Circuit type this wire is used for. Can only be one, e.g. power or logic.
+  ```
+
+**Skeptic (source-accuracy): confirmed**
+
+Note: Fetched all files at pin d2162c99 myself. FGCircuitConnectionComponent.h and FGBuildableWire.h both declare UPROPERTY(EditDefaultsOnly) TSubclassOf<UFGCircuit> mCircuitType. The three quotes appear verbatim (the 'logic' wording, 'it is illegal to try to connect two connections with different types', 'Can only be one, e.g. power or logic'). Hierarchy UFGConnectionComponent -> UFGCircuitConnectionComponent -> UFGPowerConnectionComponent is correct. The stub FGPowerConnectionComponent.cpp sets mCircuitType = UFGPowerCircuit::StaticClass(), while the base stubs default it to nullptr. Live check on 2026-10-13: SML master HEAD is d2162c99, 'Update headers to CL502094', 2026-08-11T22:13:23Z, so main equals the pin. 'logic' appears only in comments, so it is design intent, as the claim says.
+
+Evidence: <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGCircuitConnectionComponent.h>
+
+**Skeptic (Lens 2 - contradiction and freshness): confirmed**
+
+Note: Re-read at the pin. Both mCircuitType members are TSubclassOf<UFGCircuit> + EditDefaultsOnly. Quote: "Note that it is illegal to try to connect two connections with different types." Hierarchy confirmed (UFGPowerConnectionComponent : UFGCircuitConnectionComponent, FGPowerConnectionComponent.h:23). Stub ctor: "this->mCircuitType = UFGPowerCircuit::StaticClass();". Freshness: master HEAD is d2162c99 (2026-08-11), but SML branch `dev` is 8eebc9e6 "Update headers to CL513885" (2026-10-12), 5 commits ahead; none of its 18 changed files touch Circuit/Wire/Hologram headers, so the claim survives the newer game build. New corroboration: AFGWireHologram has "Circuit types this wire can connect" (mCircuitType) and FindOverlappingCircuitConnectionComponent(..., compatibleCircuitType, ...). KMods AKPCLNetworkCable ctor sets mCircuitType = UKPCLNetwork::StaticClass(). Inference only: KMods hooks AddHiddenConnection to cancel mismatched types, so 'illegal' looks like a contract the vanilla hidden-connection path does not enforce itself.
+
+Evidence: <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGCircuitConnectionComponent.h>
+
+### c2 (verified-primary, decision-driving)
+
+A published third-party library already implements a complete second network type on top of the vanilla circuit machinery, all in C++. 'KMods Library - Code' (SMR KPrivateCodeLib 2026.3.514, 2026-08-30, SML ^3.12.0, game >=491125, ~504k downloads, source under MIT) defines UKPCLNetwork derived from UFGPowerCircuit, UKPCLNetworkConnectionComponent derived from UFGPowerConnectionComponent with mCircuitType = UKPCLNetwork, AKPCLNetworkCable derived from AFGBuildableWire (UCLASS Abstract, so a Blueprint child is needed), and AKPCLNetworkCableHologram derived from AFGWireHologram. Members are found via AFGCircuitSubsystem::FindCircuit(GetCircuitID()). Caveat: it derives from the POWER circuit and fakes power production (KFaxitFakePowerProduced = 50000000.f) and sets mHasPower/fuse flags each tick. That suggests a clean UFGCircuit subclass was not used or not sufficient. I did not establish which released mod uses this network at runtime.
+
+Evidence:
+
+- <https://github.com/Satisfactory-KMods/public-source/blob/129a67aadedc92368ca1db9b6c01bc2e5c6c6f41/KPrivateCodeLib/Source/KPrivateCodeLib/Public/Network/KPCLNetwork.h>
+
+  ```text
+  class KPRIVATECODELIB_API UKPCLNetwork : public UFGPowerCircuit
+  ```
+- <https://github.com/Satisfactory-KMods/public-source/blob/129a67aadedc92368ca1db9b6c01bc2e5c6c6f41/KPrivateCodeLib/Source/KPrivateCodeLib/Private/Network/KPCLNetworkConnectionComponent.cpp>
+
+  ```text
+  UKPCLNetworkConnectionComponent::UKPCLNetworkConnectionComponent() { mCircuitType = UKPCLNetwork::StaticClass(); }
+  ```
+- <https://github.com/Satisfactory-KMods/public-source/blob/129a67aadedc92368ca1db9b6c01bc2e5c6c6f41/KPrivateCodeLib/Source/KPrivateCodeLib/Private/Network/KPCLNetworkConnectionComponent.cpp>
+
+  ```text
+  return Cast<UKPCLNetwork>(CircuitSubsystem->FindCircuit(GetCircuitID()));
+  ```
+- <https://github.com/Satisfactory-KMods/public-source/blob/129a67aadedc92368ca1db9b6c01bc2e5c6c6f41/KPrivateCodeLib/Source/KPrivateCodeLib/Public/Network/KPCLNetworkCableHologram.h>
+
+  ```text
+  class KPRIVATECODELIB_API AKPCLNetworkCableHologram : public AFGWireHologram
+  ```
+- <https://github.com/Satisfactory-KMods/public-source/blob/129a67aadedc92368ca1db9b6c01bc2e5c6c6f41/KPrivateCodeLib/Source/KPrivateCodeLib/Private/Network/KPCLNetwork.cpp>
+
+  ```text
+  static constexpr float KFaxitFakePowerProduced = 50000000.f;
+  ```
+
+**Skeptic (source-accuracy): confirmed**
+
+Note: All 5 quotes appear verbatim at commit 129a67aa, which is the current main HEAD (2026-09-13). UKPCLNetwork : public UFGPowerCircuit. UKPCLNetworkConnectionComponent : public UFGPowerConnectionComponent, and its constructor sets mCircuitType = UKPCLNetwork::StaticClass(). AKPCLNetworkCable : public AFGBuildableWire is UCLASS(Abstract). AKPCLNetworkCableHologram : public AFGWireHologram. TickCircuit forces mHasPower = true, mIsFuseTriggered = false and mPowerProduced = KFaxitFakePowerProduced. The api.ficsit.app record matches: KPrivateCodeLib, 504,033 downloads, latest 2026.3.514 created 2026-08-30T12:45:35Z, game >=491125, SML ^3.12.0. Caveats the claim omits: (1) the SMR record has hidden=true, so it is published but unlisted; (2) the repo snapshot is about 2 weeks newer than the 2026.3.514 release, and the repo uplugin says 9999.9.9, so source and binary may differ; (3) the LICENSE is MIT but covers code only (assets fall under LICENSE-ASSETS), and GitHub's API reports NOASSERTION; (4) 'complete' is generous given it fakes power, though the claim caveats that itself.
+
+Evidence: <https://github.com/Satisfactory-KMods/public-source/blob/129a67aadedc92368ca1db9b6c01bc2e5c6c6f41/KPrivateCodeLib/Source/KPrivateCodeLib/Private/Network/KPCLNetworkConnectionComponent.cpp>
+
+**Skeptic (Lens 2 - contradiction and freshness): partially-correct**
+
+Corrected statement: All code facts hold (UKPCLNetwork : UFGPowerCircuit; UKPCLNetworkConnectionComponent : UFGPowerConnectionComponent; AKPCLNetworkCable : AFGBuildableWire, Abstract; AKPCLNetworkCableHologram : AFGWireHologram; SMR 2026.3.514, 2026-08-30, SML ^3.12.0, >=491125, 504,033 downloads). Corrections: (1) Licence is split: LICENSE is MIT for code only, LICENSE-ASSETS forbids redistributing /Content, GitHub API says NOASSERTION; the Blueprint child the Abstract cable needs would fall under the restrictive asset licence. (2) The SMR entry is hidden:true and is named 'PrivateCodeLib', so it is a dependency library for KMods' own mods, not a public API. (3) Consumers found: FaxitReborn (512 dl), FaxitNetworkExpanded (370 dl) and SatisfactoryPlus 2026.3.489 (~249k dl) all depend on KPrivateCodeLib and list LinuxServer/WindowsServer targets; FaxitReborn's page says "Multiplayer support has not been tested yet." That these mods instantiate UKPCLNetwork is inferred from the KFaxit* naming, not read from their binaries. (4) The power-derived route needed native hooks: AddHiddenConnection cancel on type mismatch, AFGPowerPoleHologram/AFGPowerPoleWallHologram::CheckValidPlacement, AFGWireHologram::TryUpgrade, plus a replication-graph stale-actor sanitizer.
+
+Note: Verified verbatim: "class KPRIVATECODELIB_API UKPCLNetwork : public UFGPowerCircuit" and the ctor "mCircuitType = UKPCLNetwork::StaticClass();". Source at the cited commit is still repo HEAD. The 'clean subclass was not sufficient' inference is unproven: KMods iterates mPowerInfos (UKPCLNetworkInfoComponent : UFGPowerInfoComponent) to find members, while base UFGCircuit exposes GetComponents(). Hooks are in KPrivateCodeLibModule.cpp.
+
+Evidence: <https://github.com/Satisfactory-KMods/public-source/blob/129a67aadedc92368ca1db9b6c01bc2e5c6c6f41/KPrivateCodeLib/Source/KPrivateCodeLib/Public/Network/KPCLNetwork.h>
+
+### c3 (verified-primary, decision-driving)
+
+Vanilla circuits compute connected-component membership (a shared bus), not directed per-wire signals. The header states A and B are known to be connected but not whether a wire joins them directly. The wire is just an 'edge in a circuit graph'. A bridge or switch building joins two circuits into one when active. A redstone-like gate therefore needs one connector on an input circuit and a different connector on an output circuit, with its own evaluation step (design inference, not in the sources).
+
+Evidence:
+
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGCircuit.h>
+
+  ```text
+  We can say that A and B are connected (indirectly or directly) but not if there is a wire directly between A and B.
+  ```
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/Buildables/FGBuildableWire.h>
+
+  ```text
+  This is an edge in a circuit graph.
+  ```
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/Buildables/FGBuildableCircuitBridge.h>
+
+  ```text
+  Building that connects two circuits, allowing them to act as one single circuit. Intended as base for switches and similar buildings.
+  ```
+
+**Skeptic (source-accuracy): confirmed**
+
+Note: The 3 quotes are verbatim: FGCircuit.h ('We can say that A and B are connected (indirectly or directly) but not if there is a wire directly between A and B'), FGBuildableWire.h ('This is an edge in a circuit graph.'), FGBuildableCircuitBridge.h ('Building that connects two circuits, allowing them to act as one single circuit. Intended as base for switches and similar buildings.'). FGBuildableCircuitSwitch.h adds 'when the switch is turned on'. UFGCircuit's own header describes the graph of components (nodes) and wires (edges), which supports 'connected-component membership'. The gate-design conclusion is correctly labelled as inference, not as source text.
+
+Evidence: <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGCircuit.h>
+
+**Skeptic (Lens 2 - contradiction and freshness): partially-correct**
+
+Corrected statement: Membership-not-direction and the three quotes are confirmed. Imprecise part: a bridge/switch does not merge two circuits into one. The circuits keep separate IDs (AFGBuildableCircuitBridge exposes GetCircuitID0/GetCircuitID1) and active bridges merge them at circuit-GROUP level. Groups exist only on the server; clients compare group IDs. The gate-design inference (separate input and output circuits plus a custom evaluation step) still holds, but a custom group type would be needed (UFGCircuit::CreateCircuitGroup defaults to nullptr).
+
+Note: FGPowerCircuit.h: "A circuit group is a grouping of circuits connected by switches. When I switch is turned on the circuits on both sides are grouped together. This is to avoid traversing the circuit connections and rebuilding the circuits when a switch is flipped." and "Groups only exist on the server, on the client you can compare group IDs". FGCircuitSubsystem.h: bridges "work as delimiters of circuits"; if on, not delimiters of circuit groups. FGBuildableCircuitSwitch.h: "allowing them to act as one single circuit when the switch is turned on." Quotes in the claim (FGCircuit.h, FGBuildableWire.h, FGBuildableCircuitBridge.h) are verbatim.
+
+Evidence: <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGPowerCircuit.h>
+
+### c4 (unverified, decision-driving)
+
+UNVERIFIED: whether a non-power circuit type works end to end in the game binary. All SML FactoryGame .cpp files are auto-generated empty stubs (e.g. AFGCircuitSubsystem::Get returns nullptr), so ticking, splitting, replication and save of a custom circuit cannot be checked from source. Hints that it is not trivial: UFGCircuit::SplitCircuit and CreateCircuitGroup default to nullptr; 'Circuit groups are responsible for ticking the circuits in them' (the power group overrides PushCircuit, PreTick/TickCircuitGroup, VisitCircuitBridge); AFGBuildableCircuitBridge has a power-group-specific AcceptCircuitGroup overload; the only existing non-vanilla example (c2) derives from UFGPowerCircuit and fakes power. Among headers named *Circuit*, only FGPowerCircuit.h declares a UFGCircuit subclass. I searched the web and GitHub for a direct UFGCircuit subclass and found none. Needs a spike on the owner's PC (go/no-go: ticks on a dedicated server, replicates to a client, survives save/load, loads after the mod is removed).
+
+Evidence:
+
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Private/FGCircuitSubsystem.cpp>
+
+  ```text
+  // This file has been automatically generated by the Unreal Header Implementation tool
+  ```
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGCircuit.h>
+
+  ```text
+  @return a newly created circuit of the same type as this circuit, preserving some of the state of this circuit. Will be nullptr if not overridden.
+  ```
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGPowerCircuit.h>
+
+  ```text
+  Circuit groups are responsible for ticking the circuits in them.
+  ```
+
+**Skeptic (source-accuracy): partially-correct**
+
+Corrected statement: UNVERIFIED (correctly labelled): whether a non-power circuit type works end to end cannot be settled from source. Every circuit-related .cpp is an auto-generated stub: FGCircuit, FGCircuitSubsystem, FGCircuitConnectionComponent, FGPowerCircuit, FGPowerConnectionComponent, FGBuildableWire, FGBuildableCircuitBridge and FGBuildableCircuitSwitch. But it is NOT true that all FactoryGame .cpp files are empty stubs: 842 of 971 Private/**/*.cpp carry the autogen banner and 129 do not. Some of those hold real code, e.g. Buildables/FGBuildable.cpp (3084 lines) and FGWorldScannableData.cpp. The stubs are also not empty, since they contain constructors with default values.
+
+Note: All hints verified at pin d2162c99: the autogen banner quote is in FGCircuitSubsystem.cpp; AFGCircuitSubsystem::Get returns nullptr; SplitCircuit and CreateCircuitGroup return nullptr, with the quoted 'Will be nullptr if not overridden.'; 'Circuit groups are responsible for ticking the circuits in them.' is in FGPowerCircuit.h; UFGPowerCircuitGroup overrides PushCircuit, PreTickCircuitGroup, TickCircuitGroup and VisitCircuitBridge; AFGBuildableCircuitBridge has the AcceptCircuitGroup(UFGPowerCircuitGroup*) overload. A grep of all Public headers finds UFGPowerCircuit as the only UFGCircuit subclass. My own 'gh search code' and one WebSearch found no other direct subclass, though code search is not exhaustive. AFGCircuitSubsystem::CreateCircuit takes a generic TSubclassOf<UFGCircuit>, which is a hint for the spike. The only overstated part is the 'All ... stubs' sentence. The central go/no-go question stays unverifiable without the PC spike.
+
+Evidence: <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGCircuit.h>
+
+**Skeptic (Lens 2 - contradiction and freshness): unverifiable**
+
+Note: Open status confirmed; my refutation attempts found no proof either way. Sub-claims verified: SML .cpp files are generated stubs ("This file has been automatically generated by the Unreal Header Implementation tool"; AFGCircuitSubsystem::Get returns nullptr), SplitCircuit/CreateCircuitGroup default to nullptr, the bridge has a UFGPowerCircuitGroup-specific AcceptCircuitGroup overload, and UFGPowerCircuit is the only UFGCircuit subclass in all Public headers. GitHub-wide code search ("public UFGCircuit", "public UFGPowerCircuit") returned only header mirrors plus KMods; docs.ficsit.app has no circuit-type page (PowerNetwork.html describes only power circuits). Mixed hints: subsystem CreateCircuit(TSubclassOf<UFGCircuit>), mReplicatedCircuits (TArray<UFGCircuit>) and the wire hologram circuit-type filter are generic, which favours feasibility. Against: even the power-derived KMods route needed runtime hooks and its consumers say multiplayer is untested. Whether a bare UFGCircuit subclass ticks, replicates and saves stays a spike on the owner's PC. Side note: the stubs keep constructors and DOREPLIFETIME lists, so they are not entirely empty.
+
+Evidence: <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGCircuitSubsystem.h>
+
+### c5 (verified-primary, decision-driving)
+
+FicsIt-Networks does NOT reuse UFGCircuit/AFGBuildableWire. It has its own graph: AFINNetworkCircuit (an AActor that caches the Nodes array, rebuilt by recursive DFS from any node via the IFINNetworkCircuitNode::GetConnected interface), UFINNetworkConnectionComponent (a USceneComponent node with MaxCables, ConnectedCables and hidden ConnectedNodes), and AFINNetworkCable derived from AFGBuildable (Connector1/Connector2 are SaveGame + Replicated). Connect/disconnect merges or splits circuits through static ConnectNodes/DisconnectNodes. The graph is rebuilt from the saved cables on load (cable BeginPlay calls ConnectConnectors). The files cited are identical on master v1.2.0 (789c32f, the published release) and on the development branch (e588fab, 1.3.0); I diffed them, and only minor differences exist in ConnectionComponent.cpp, Cable.cpp and SignalSubsystem.
+
+Evidence:
+
+- <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/Source/FicsItNetworksCircuit/Public/FINNetworkCircuit.h>
+
+  ```text
+  class FICSITNETWORKSCIRCUIT_API AFINNetworkCircuit : public AActor {
+  ```
+- <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/Source/FicsItNetworksCircuit/Private/FINNetworkCircuit.cpp>
+
+  ```text
+  void AFINNetworkCircuit::AddNodeRecursive(TArray<TScriptInterface<IFINNetworkCircuitNode>>& Added, TScriptInterface<IFINNetworkCircuitNode> Add) {
+  ```
+- <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/Source/FicsItNetworksCircuit/Public/FINNetworkCable.h>
+
+  ```text
+  class FICSITNETWORKSCIRCUIT_API AFINNetworkCable : public AFGBuildable {
+  ```
+- <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/Source/FicsItNetworksCircuit/Public/FINNetworkConnectionComponent.h>
+
+  ```text
+  This actor component is a network circuit node which allows you
+  ```
+
+**Skeptic (source-accuracy): confirmed**
+
+Note: All 4 quotes are verbatim at 789c32fd (tag v1.2.0, master HEAD). I verified the specifics: AFINNetworkCircuit is an AActor with a replicated UObject* Nodes array rebuilt by AddNodeRecursive (DFS over GetConnected), static ConnectNodes/DisconnectNodes, and operator+ for merging. UFINNetworkConnectionComponent is a USceneComponent with MaxCables, ConnectedCables, and ConnectedNodes (documented as the 'hidden' connections). AFINNetworkCable : public AFGBuildable has Connector1/Connector2 as SaveGame + Replicated. Cable BeginPlay calls ConnectConnectors(), which calls AddConnectedCable, which calls ConnectNodes. I diffed 8 files between 789c32f and development e588fab (2026-10-08, uplugin 1.3.0, SML ^3.12.0, game >=502094). Headers are identical. Cable.cpp differs by 2 lines (Super::EndPlay added) and ConnectionComponent.cpp by 3 lines (#endif/#else). SignalSubsystem differs by 4 lines in the .cpp and 2 in the .h. The published SMR release is 1.2.0 (2025-09-09, game >=415558), so 'published release' is right, but it does not target the owner's CL 502094 build.
+
+Evidence: <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/Source/FicsItNetworksCircuit/Public/FINNetworkCircuit.h>
+
+**Skeptic (Lens 2 - contradiction and freshness): confirmed**
+
+Note: Re-read at 789c32f and e588fab4: circuit/cable/connection-component headers are byte-identical; only Cable.cpp (EndPlay Super call) and ConnectionComponent.cpp (#if/#else) differ. I did not re-check the SignalSubsystem diff. Verified: "class FICSITNETWORKSCIRCUIT_API AFINNetworkCircuit : public AActor {", AddNodeRecursive DFS via Execute_GetConnected, cable "public AFGBuildable", Connector1/2 SaveGame+Replicated, static ConnectNodes/DisconnectNodes, ConnectConnectors in cable BeginPlay (skipped when in a blueprint designer). Additions: the circuit actor is bAlwaysRelevant and replicates its whole Nodes array; FIN is GPL-3.0, which matters for any code reuse; published 1.2.0 targets SML ^3.11.1 and game >=415558, while dev 1.3.0 targets >=502094 and is unreleased.
+
+Evidence: <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/Source/FicsItNetworksCircuit/Public/FINNetworkCircuit.h>
+
+### c6 (verified-primary, decision-driving)
+
+Circuitry (SMR FicsitWiremod, Scordium/FicsitWiremod) uses a pull-based model, not circuits. Each gate (AFGWiremodBuildable derived from AFGBuildable) stores InputConnections, an array of FConnectionData {UObject* Object, FName FunctionName, wire colour/points}, marked SaveGame + Replicated. Values are read by reflection from the source object. The visible wire is a separate plain AActor with spline meshes (AConnectionWireBase, replicated AssignedConnection). Every gate ticks (ServerProcess on authority, ClientProcess everywhere) with NetDormancy DORM_Never. It is published (v14.1.63, 2026-09-26, ~195k downloads) for SML ^3.12.0 and game >=502094, the owner's exact build, and its Content/ has hundreds of gate assets. The GitHub API reports license null and the repo root has no LICENSE file, so the code is design-only reference, not reusable. It overlaps the 'logic gates for Satisfactory' niche; the product must differentiate.
+
+Evidence:
+
+- <https://github.com/Scordium/FicsitWiremod/blob/4e9fff3e3e1254c1b418bdf4d9148994f3ff0162/Source/FicsitWiremod/Public/Behaviour/FGWiremodBuildable.h>
+
+  ```text
+  TArray<FConnectionData> InputConnections;
+  ```
+- <https://github.com/Scordium/FicsitWiremod/blob/4e9fff3e3e1254c1b418bdf4d9148994f3ff0162/Source/FicsitWiremod/Public/Utility/ConnectionWireBase.h>
+
+  ```text
+  class FICSITWIREMOD_API AConnectionWireBase : public AActor
+  ```
+- <https://github.com/Scordium/FicsitWiremod/blob/4e9fff3e3e1254c1b418bdf4d9148994f3ff0162/Source/FicsitWiremod/Private/Behaviour/FGWiremodBuildable.cpp>
+
+  ```text
+  if(HasAuthority()) ServerProcess(DeltaTime);
+  ```
+- <https://github.com/Scordium/FicsitWiremod/blob/4e9fff3e3e1254c1b418bdf4d9148994f3ff0162/Source/FicsitWiremod/Public/Behaviour/FGWiremodBuildable.h>
+
+  ```text
+  NetDormancy = DORM_Never;
+  ```
+- <https://github.com/Scordium/FicsitWiremod/blob/4e9fff3e3e1254c1b418bdf4d9148994f3ff0162/FicsitWiremod.uplugin>
+
+  ```text
+  "GameVersion": ">=502094"
+  ```
+
+**Skeptic (source-accuracy): confirmed**
+
+Note: All 5 quotes are verbatim at 4e9fff3e. AFGWiremodBuildable : public AFGBuildable has 'UPROPERTY(EditInstanceOnly, BlueprintReadWrite, SaveGame, Replicated) TArray<FConnectionData> InputConnections;'. FConnectionData (in WiremodReflection.h) has UObject* Object, FName FunctionName, WireColor and WirePositions, and values are read via FindFunction/ProcessEvent. AConnectionWireBase : public AActor has a replicated AssignedConnection and spline meshes. Tick does 'if(HasAuthority()) ServerProcess(DeltaTime); ClientProcess(DeltaTime);' and NetDormancy = DORM_Never. api.ficsit.app: 'Circuitry - Logic gates and More', v14.1.63 created 2026-09-26T07:25:47Z, game >=502094, SML ^3.12.0, 195,480 downloads. The repo has no LICENSE file in the tree (1947 blobs), the GitHub license field is null, and the README has no licence terms. Content/ holds 1439 .uasset files, 553 of them under Gate directories. Minor: the commit cited is the repo HEAD with uplugin VersionName 14.1.62, one patch behind the SMR 14.1.63 release.
+
+Evidence: <https://github.com/Scordium/FicsitWiremod/blob/4e9fff3e3e1254c1b418bdf4d9148994f3ff0162/Source/FicsitWiremod/Public/Behaviour/FGWiremodBuildable.h>
+
+**Skeptic (Lens 2 - contradiction and freshness): confirmed**
+
+Note: Verbatim at the cited commit: "UPROPERTY(EditInstanceOnly, BlueprintReadWrite, SaveGame, Replicated) TArray<FConnectionData> InputConnections;"; FConnectionData has UObject* Object, FName FunctionName, WireColor, WirePositions; Tick: "if(HasAuthority()) ServerProcess(DeltaTime); ClientProcess(DeltaTime);"; ctor sets "NetDormancy = DORM_Never;" and mFactoryTickFunction.bCanEverTick=false (own actor tick, not the factory tick); values are read via FindFunction/ProcessEvent/FindPropertyByName. SMR: 14.1.63, 2026-09-26, 195,480 dl, SML ^3.12.0, >=502094, LinuxServer/Windows/WindowsServer. Content has 1,439 .uasset, 555 with 'Gate' in the path. No LICENSE file; GitHub licence null. Minor: repo HEAD uplugin says 14.1.62, one behind SMR 14.1.63. The wire actor replicates FDynamicConnectionData (not FConnectionData). The RCO class is UCLASS(Abstract, Blueprintable).
+
+Evidence: <https://github.com/Scordium/FicsitWiremod/blob/4e9fff3e3e1254c1b418bdf4d9148994f3ff0162/Source/FicsitWiremod/Public/Behaviour/FGWiremodBuildable.h>
+
+### c7 (verified-primary, decision-driving)
+
+In multiplayer, a client cannot call server code on arbitrary objects; link create/edit/delete from a client link tool must go through a Remote Call Object (one per player controller, owned by that controller). Multicast must not be used from RCOs. Both shipped logic/network mods do this: Circuitry exposes ConnectWiremodObject/ResetConnections as Reliable Server RPCs on a UFGRemoteCallObject subclass; FIN has UFINWirelessRCO. A custom vanilla-style wire built with the build gun does not need an RCO (the build gun already constructs on the server), but any numeric-channel or link-tool UI does.
+
+Evidence:
+
+- <https://docs.ficsit.app/satisfactory-modding/latest/Development/Satisfactory/Multiplayer.html>
+
+  ```text
+  RCOs are spawned by the server for each player controller, but importantly, that player controller is given network ownership of the RCO.
+  ```
+- <https://docs.ficsit.app/satisfactory-modding/latest/Development/Satisfactory/Multiplayer.html>
+
+  ```text
+  Do Not Use Multicast in RCOs! It is important to note that since the RCOs are owned by the player controller, they do not exist on every connection.
+  ```
+- <https://github.com/Scordium/FicsitWiremod/blob/4e9fff3e3e1254c1b418bdf4d9148994f3ff0162/Source/FicsitWiremod/Public/Behaviour/WiremodRemoteCalls.h>
+
+  ```text
+  void ConnectWiremodObject(UObject* Buildable, const FConnectionData& Data, int Index, UObject* Setter);
+  ```
+- <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/Source/FicsItNetworksCircuit/Public/Wireless/FINWirelessRCO.h>
+
+  ```text
+  class FICSITNETWORKSCIRCUIT_API UFINWirelessRCO : public UFGRemoteCallObject {
+  ```
+
+**Skeptic (source-accuracy): partially-correct**
+
+Corrected statement: In multiplayer, client-to-server calls must go through an RCO (one per player controller, owned by it); Multicast must not be used from RCOs. Circuitry uses a UFGRemoteCallObject subclass (UWiremodRemoteCalls) with Reliable Server RPCs, including ConnectWiremodObject and ResetConnections, for its link tool. FIN does NOT use an RCO for linking: UFINWirelessRCO only subscribes a client UI to wireless-access-point connection data. FIN also has RCOs for its Computer and Lua UIs. The point that build-gun-placed wires need no RCO is the author's inference; no source was cited for it.
+
+Note: The 2 docs.ficsit.app/Multiplayer.html quotes are verbatim, and the page says RPCs only work on objects (transitively) owned by the connection. WiremodRemoteCalls.h is verbatim: 'UCLASS(Abstract, Blueprintable) class FICSITWIREMOD_API UWiremodRemoteCalls : public UFGRemoteCallObject' with 'UFUNCTION(BlueprintCallable, Reliable, Server)' on ConnectWiremodObject and ResetConnections. The FINWirelessRCO.h quote is verbatim, but its own comment reads 'RCO used to trigger updates on the server, in order to recalculate the currently displayed radar towers & WAP'. So 'Both shipped logic/network mods do this' (for link create/edit/delete) holds only for Circuitry. In FIN's circuit module the cable path (AFINNetworkCable, hologram) contains no RCO, which is consistent with the build-gun inference but does not prove it.
+
+Evidence: <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/Source/FicsItNetworksCircuit/Public/Wireless/FINWirelessRCO.h>
+
+**Skeptic (Lens 2 - contradiction and freshness): partially-correct**
+
+Corrected statement: Core holds: client-to-server link/edit calls need an RCO, Multicast is forbidden in RCOs, Circuitry does this, and the build gun already constructs on the server so a build-gun wire needs no RCO. Overgeneralised: 'both mods do this'. FIN's three RCOs (UFINWirelessRCO, UFINComputerRCO, UFINLuaRCO) serve wireless-AP subscription, computer/GPU input, SetNick etc. and are not used to create links; FIN cables are build-gun buildables.
+
+Note: Docs verbatim: "RPCs only work on objects that are (transitively) owned by the connection" and "Do Not Use Multicast in RCOs!". Circuitry: "UFUNCTION(BlueprintCallable, Reliable, Server) void ConnectWiremodObject(UObject* Buildable, const FConnectionData& Data, int Index, UObject* Setter);" (also ResetConnections). Build-gun inference now verified in the pinned SML: FGBuildGunBuild.h (UFGBuildGunStateBuild) has "UFUNCTION( Server, Reliable ) void Server_ConstructHologram( FNetConstructionID clientNetConstructID, FConstructHologramMessage data );" and FGBuildGun.h has Server_PrimaryFire.
+
+Evidence: <https://docs.ficsit.app/satisfactory-modding/latest/Development/Satisfactory/Multiplayer.html>
+
+### c8 (verified-primary, decision-driving)
+
+Vanilla has a code-only link inside the circuit machinery: 'hidden connections'. AddHiddenConnection/RemoveHiddenConnection/HasHiddenConnection are BlueprintCallable; one of the two connectors must be flagged hidden (mIsHiddenConnection); both ends and their circuits get connected. mHiddenConnections is SaveGame but NOT Replicated (unlike mWires and mCircuitID). Vanilla uses it for powered walls and rail power; the official docs confirm hidden connections exist. This is the natural primitive for wireless or snapped links on the vanilla circuit layer. The client only learns membership via the replicated mCircuitID.
+
+Evidence:
+
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGCircuitConnectionComponent.h>
+
+  ```text
+  Add a hidden connection to another connection component. One of the connections must be hidden for this to be valid.
+  ```
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGCircuitConnectionComponent.h>
+
+  ```text
+  This connection is hidden and can only be connected through the code. E.g. powered walls have a hidden connection all machines connect to.
+  ```
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGCircuitConnectionComponent.h>
+
+  ```text
+  The non-wired (if this or the other is hidden) connections to this.
+  ```
+- <https://docs.ficsit.app/satisfactory-modding/latest/Development/Satisfactory/PowerNetwork.html>
+
+  ```text
+  It manages cable connections and hidden connections from other connection components to itself. It f.e. limits the number of cables you can attach to it.
+  ```
+
+**Skeptic (source-accuracy): confirmed**
+
+Note: All 4 quotes are verbatim. 3 are from FGCircuitConnectionComponent.h at the pin. The 4th, 'It manages cable connections and hidden connections from other connection components to itself. It f.e. limits the number of cables you can attach to it.', is in docs.ficsit.app PowerNetwork.html, which I curl'd. AddHiddenConnection, RemoveHiddenConnection and HasHiddenConnection are BlueprintCallable. mHiddenConnections is UPROPERTY(VisibleAnywhere, SaveGame) with no Replicated. The stub's DOREPLIFETIME list has only mWires, mNumWiresConnected and mCircuitID, which corroborates that. Only the header comment mentions powered walls; 'rail power' is supported by the docs ('The list of hidden connections (f.e. train rails)'), not by the cited header. Vanilla FGBuildableElevator.h also calls RemoveHiddenConnection. 'The natural primitive for wireless links' is the author's opinion, not source text.
+
+Evidence: <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGCircuitConnectionComponent.h>
+
+**Skeptic (Lens 2 - contradiction and freshness): confirmed**
+
+Note: Verbatim: "Add a hidden connection to another connection component. One of the connections must be hidden for this to be valid." mHiddenConnections is UPROPERTY(VisibleAnywhere, SaveGame) with no Replicated. The stub GetLifetimeReplicatedProps lists only mWires, mNumWiresConnected and mCircuitID. The docs page says "It manages cable connections and hidden connections" and lists "The list of hidden connections (f.e. train rails)". Extra vanilla users found: FGBuildableElevator.h calls RemoveHiddenConnection for floor stops, a decompiled Build_PowerPoleWallDouble BP calls PowerConnection1->AddHiddenConnection(PowerConnection2) (Archengius/BPPseudoCodeGen), and FGRailroadSubsystem.h mentions a "station's hidden power connection". Caveat (inference): KMods hooks AddHiddenConnection and calls Scope.Cancel() on mismatched circuit types, so vanilla does not appear to guard type mixing on this path.
+
+Evidence: <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGCircuitConnectionComponent.h>
+
+### c9 (verified-primary)
+
+Vanilla wire building flow (hologram): AFGWireHologram is a multi-step AFGBuildableHologram that holds two connector pointers and finds the nearest connector via FindOverlappingCircuitConnectionComponent filtered by compatible circuit type. It can auto-spawn a child pole through mDefaultPowerPoleRecipe and mDefaultPowerPoleWallRecipe, which a non-power wire must null. Length and cost come from the wire class (mMaxLength cm, mMaxPowerTowerLength, mLengthPerCost). AFGBuildableWire::Connect(first, second) is public. Disqualifiers such as UFGCDWireTooLong, UFGCDWireTooManyConnections and UFGCDWireSnap exist. FIN wrote its own hologram on AFGBuildableHologram; KMods subclassed AFGWireHologram (c2).
+
+Evidence:
+
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/Hologram/FGWireHologram.h>
+
+  ```text
+  Circuit type to look for, null is not compatible with anything.
+  ```
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/Hologram/FGWireHologram.h>
+
+  ```text
+  Recipe to use for the automatically spawned child pole, can be null.
+  ```
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/Buildables/FGBuildableWire.h>
+
+  ```text
+  Maximum length a wire may be. [cm]
+  ```
+
+### c10 (verified-primary)
+
+Native defaults at the pinned SDK (CDO values in the generated stub constructors; Blueprint children may override): AFGBuildableWire mMaxLength = 10000.0 cm (100 m), mMaxPowerTowerLength = 30000.0 cm, NetDormancy = DORM_DormantAll; UFGCircuitConnectionComponent mMaxNumConnectionLinks = 1, mAllowDaisyChaining = false, bNetAddressable = true. FIN's cable hologram independently hard-codes a 10000.0f cm limit. These are consistent with the wiki numbers in c11.
+
+Evidence:
+
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Private/Buildables/FGBuildableWire.cpp>
+
+  ```text
+  this->mMaxLength = 10000.0;
+  ```
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Private/FGCircuitConnectionComponent.cpp>
+
+  ```text
+  this->mMaxNumConnectionLinks = 1;
+  ```
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Private/Buildables/FGBuildableWire.cpp>
+
+  ```text
+  this->NetDormancy = ENetDormancy::DORM_DormantAll;
+  ```
+- <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/Source/FicsItNetworksCircuit/Private/FINNetworkCableHologram.cpp>
+
+  ```text
+  if ((From.GetConnectorPos() - Snapped.GetConnectorPos()).Size() > 10000.0f) {
+  ```
+
+### c11 (secondary)
+
+Gameplay numbers (secondary, community-edited official wiki): Power Line max length 100 m (Power Pole) and 300 m (Power Tower, one cable per 25 m extra); most buildings accept one line, storages and lights two, poles 4/7/10 by mark; no capacity limit on lines. Official Steam announcement for Update 1.2 confirms the 'Daisy chaining' MAM unlock (2 power connections per building, building-to-building flow).
+
+Evidence:
+
+- <https://satisfactory.wiki.gg/wiki/Power_Line>
+
+  ```text
+  The maximum length of a Power Line is 100 meters (12.5 Foundation lengths) for the Power Pole and 300 meters (37,5 Foundation lengths) for the Power Tower
+  ```
+- <https://satisfactory.wiki.gg/wiki/Power_Line>
+
+  ```text
+  Most buildings may only have one Power Line connected to it, Power Storages and Lights can have two; Power Poles four, seven or ten (based on the mark).
+  ```
+- <https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1826992588604352>
+
+  ```text
+  This new MAM Unlock allows 2 power connections to be made to the same building and lets you connect buildings to each other allowing power to flow from building to building
+  ```
+
+### c12 (verified-primary)
+
+Daisy Chain Everything (SMR DaisyChainEverything 1.2.0, game >=502094, repo mklierman/SatisfactoryMods, GPL-3.0) raises the per-connector link cap at runtime by writing UFGPowerConnectionComponent::mMaxNumConnectionLinks on every AFGBuildable via an SML native hook on BeginPlay. It needs an AccessTransformers.ini friend declaration because the member is not public. The link cap is therefore a plain per-instance property, not a hard engine limit, and SML hooks and access transformers are the standard way to poke vanilla internals.
+
+Evidence:
+
+- <https://github.com/mklierman/SatisfactoryMods/blob/c154da4e9b7f74b0e03a4633aa4de42af452cc4d/DaisyChainEverything/Source/DaisyChainEverything/Private/DaisyChainEverythingModule.cpp>
+
+  ```text
+  if (powerConns[i]->mMaxNumConnectionLinks < minConnections)
+  ```
+- <https://github.com/mklierman/SatisfactoryMods/blob/c154da4e9b7f74b0e03a4633aa4de42af452cc4d/DaisyChainEverything/Config/AccessTransformers.ini>
+
+  ```text
+  Friend=(Class="UFGCircuitConnectionComponent", FriendClass="FDaisyChainEverythingModule")
+  ```
+
+### c13 (verified-primary)
+
+Cable Choices Plus (SMR AB_CableMod 1.1.9, 2026-10-12, ~112k downloads; no LICENSE file) subclasses AFGBuildableWire in C++ (AABBuildablePowerline, with an empty constructor and Blueprint children carrying the data) and hooks AFGBuildableWire::UpdateWireInstanceMesh with SML's SUBSCRIBE_METHOD_AFTER. So C++ wire subclasses plus hooks on wire internals are viable in a shipped mod. Note its 1.1.9 requires game >=513885, which is newer than the owner's CL 502094.
+
+Evidence:
+
+- <https://github.com/DavidHGillen/Satisfactory_AB-CableChoices/blob/d155b67dbf085a851dee73c521dbcaa78dd0e1e6/PluginFolder/Source/AB_CableMod/Public/ABBuildablePowerline.h>
+
+  ```text
+  class AB_CABLEMOD_API AABBuildablePowerline : public AFGBuildableWire
+  ```
+- <https://github.com/DavidHGillen/Satisfactory_AB-CableChoices/blob/d155b67dbf085a851dee73c521dbcaa78dd0e1e6/PluginFolder/Source/AB_CableMod/AB_CableModModule.cpp>
+
+  ```text
+  SUBSCRIBE_METHOD_AFTER(AFGBuildableWire::UpdateWireInstanceMesh, [](const FWireInstance& wireInstance) {
+  ```
+
+### c14 (verified-primary)
+
+Hard-won lessons on spawning wires from code (SmartFoundations, majormer, licence NOASSERTION/all-rights-reserved header): wires should be direct-spawned and then Connect()ed after both ends exist, not replayed from holograms (that produced unconnected 'zombie' wires in multiplayer); unconnected wires are destroyed by the game; a failed Connect can leave a dead entry in the connector's SaveGame wire list, so use Dismantle rather than Destroy; wires spanning a Blueprint Designer boundary need the designer stamped before BeginPlay. A logic wire built from code must follow these rules.
+
+Evidence:
+
+- <https://github.com/majormer/SmartFoundations/blob/63f19c4b16cb6bc2dabca7e2c3cb839729df96a2/Source/SmartFoundations/Private/Features/PowerAutoConnect/SFPowerAutoConnectManager.cpp>
+
+  ```text
+  // because unconnected wires are destroyed by the game. Now that both poles are built,
+  ```
+- <https://github.com/majormer/SmartFoundations/blob/63f19c4b16cb6bc2dabca7e2c3cb839729df96a2/Source/SmartFoundations/Private/Features/PowerAutoConnect/SFPowerAutoConnectManager.cpp>
+
+  ```text
+  // registered one side; bare Destroy leaves a dead entry in that connection's
+  ```
+- <https://github.com/majormer/SmartFoundations/blob/63f19c4b16cb6bc2dabca7e2c3cb839729df96a2/docs/Features/Multiplayer/PLAN_MP_AutoConnect_334.md>
+
+  ```text
+  | Power wires | PASS | direct-spawn post-construct (never from holograms) |
+  ```
+
+### c15 (verified-primary)
+
+Blueprint Designer interaction is a known pitfall for any custom wire: Coffee Stain fixed 'circuits from outside the Blueprint Designer' connecting to inside, and FIN's cable hologram adds the vanilla UFGCDDesignerWorldCommingling disqualifier when the two ends are on different sides of a designer. A logic wire must replicate that check.
+
+Evidence:
+
+- <https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/4836332027652550657>
+
+  ```text
+  Fixed Double Wall Outlet allowing circuits from outside the Blueprint Designer to connect to those inside of it
+  ```
+- <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/Source/FicsItNetworksCircuit/Private/FINNetworkCableHologram.cpp>
+
+  ```text
+  AddConstructDisqualifier(UFGCDDesignerWorldCommingling::StaticClass());
+  ```
+
+### c16 (verified-primary)
+
+FIN signals are not propagated along cables. The network graph only defines reachability and addressing (GUID + nick). Signals are events: AFINSignalSubsystem keeps a SaveGame map of sender object -> listener traces and BroadcastSignal calls each listener's HandleSignal; hooks are attached to the sender via the reflection hook subsystem. FIN's own docs describe the network as cables joining components ('You can build a network by simply connecting a network cable...'). An event-driven design is cheap but cannot express per-wire redstone-style levels.
+
+Evidence:
+
+- <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/Source/FicsItNetworksCircuit/Public/Signals/FINSignalSubsystem.h>
+
+  ```text
+  Map of sender objects to array of receiver traces, traces point from sender to receiver
+  ```
+- <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/Source/FicsItNetworksCircuit/Private/Signals/FINSignalSubsystem.cpp>
+
+  ```text
+  void AFINSignalSubsystem::BroadcastSignal(UObject* Sender, const FFINSignalData& Signal) {
+  ```
+- <https://docs.ficsit.app/ficsit-networks/latest/BasicConcept.html>
+
+  ```text
+  You can build a network by simply connecting a network cable to each of the components you wish to include.
+  ```
+
+### c17 (verified-primary)
+
+Licences: FicsIt-Networks is GPL-3.0 (LICENSE file and GitHub API), so copying its code makes a mod GPL-3.0. mklierman/SatisfactoryMods (DaisyChainEverything) and SmartWirelessLighting are GPL-3.0. KMods public-source states MIT for source code (assets proprietary). FicsitWiremod, Cable Choices Plus and StorageTeleporter have no licence (all rights reserved; design reference only). SmartFoundations and the Archipelago mod show NOASSERTION. The SML SDK repo is GPL-3.0 per the GitHub API.
+
+Evidence:
+
+- <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/LICENSE>
+
+  ```text
+  Version 3, 29 June 2007
+  ```
+- <https://github.com/Satisfactory-KMods/public-source/blob/129a67aadedc92368ca1db9b6c01bc2e5c6c6f41/README.md>
+
+  ```text
+  ### Source Code - MIT License
+  ```
+
+### c18 (verified-primary)
+
+FIN wireless is not wire-free logic. A Wireless Access Point must sit on a powered Radar Tower and its range equals the tower's discovery range; the AP is a network connector that bridges separate cable networks, so FIN keeps the cable graph as the model and layers wireless on top (AFINWirelessSubsystem recomputes AP/tower topology).
+
+Evidence:
+
+- <https://docs.ficsit.app/ficsit-networks/latest/buildings/WirelessAccessPoint.html>
+
+  ```text
+  it requires that the Radar Tower is powered in order to broadcast or receive network packets.
+  ```
+- <https://docs.ficsit.app/ficsit-networks/latest/buildings/WirelessAccessPoint.html>
+
+  ```text
+  maximum distance for each Access Point is the same as the in game Radar Tower discovery range
+  ```
+
+### c19 (verified-primary)
+
+Link-by-reference precedents. Circuitry's radio receiver stores a replicated, saved direct actor reference to its transmitter (no channel numbers) and sets it from the UI, clipboard or RCO. SmartWirelessLighting (GPL-3.0) derives from the vanilla lights control panel and keeps a replicated array of light connections on the hub 'without the need for spaghetti cables'. Vanilla's AFGBuildableControlPanelHost collects buildables on a downstream power connection, so vanilla already lets one hub drive devices over a power-circuit link.
+
+Evidence:
+
+- <https://github.com/Scordium/FicsitWiremod/blob/4e9fff3e3e1254c1b418bdf4d9148994f3ff0162/Source/FicsitWiremod/Public/Behaviour/Communications/RadioReceiver.h>
+
+  ```text
+  ARadioTransmitter* TransmitterReference;
+  ```
+- <https://github.com/djtheseira/SmartWirelessLighting/blob/1440ec61bab61584cc70861aea6ca4f4445b49a3/Source/SmartWirelessLighting/Public/SmartLightsControlPanel.h>
+
+  ```text
+  TArray<FBuildableLightingConnection> mBuildableLightingConnections;
+  ```
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/Buildables/FGBuildableControlPanelHost.h>
+
+  ```text
+  Building that collects buildables connected to the downstream power connection and presents them for user interaction
+  ```
+
+### c20 (verified-primary)
+
+Replication and save of stored links. Unreal replicates a UObject* property as a NetGUID, but only for replicated actors, stably named non-replicated actors, replicated components, stably named components and similar objects. Vanilla connectors set bNetAddressable = true and replicate mWires; FIN's cable and Circuitry's FConnectionData keep their endpoint pointers as SaveGame properties, so saving actor references works in shipped mods. FIN additionally prunes dead sender/listener entries in PreSaveGame (Cleanup), and SmartFoundations documents dead entries in a SaveGame wire list asserting after reload, so dangling-reference cleanup is mandatory.
+
+Evidence:
+
+- <https://dev.epicgames.com/documentation/en-us/unreal-engine/replicate-actor-properties-in-unreal-engine>
+
+  ```text
+  The following objects can have references to them replicated over a network connection: Replicated actors Stably-named, non-replicated actors Replicated components Stably-named, non-replicated actor components Any non-actor, non-component UObject from a loaded package
+  ```
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Private/FGCircuitConnectionComponent.cpp>
+
+  ```text
+  this->bNetAddressable = true;
+  ```
+- <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/Source/FicsItNetworksCircuit/Private/Signals/FINSignalSubsystem.cpp>
+
+  ```text
+  void AFINSignalSubsystem::PreSaveGame_Implementation(int32 saveVersion, int32 gameVersion) {
+  ```
+
+### c21 (verified-primary)
+
+Code-level performance hints for the vanilla circuit system (no measurements): MarkForFullRebuild is documented '(slow)'; many connect/disconnect calls in one frame collapse into one rebuild; the subsystem ticks every frame (TickInterval 0.0) on dedicated servers; the whole circuit array is replicated to clients as a duplicate array; replication of power stats is switched off when nobody looks at a circuit ('Hax'); Coffee Stain left an @optimize note on always-replicated circuit state. KMods parallelises member scanning when a circuit has more than 7 power infos (KFaxitCircuitParallelGroups = 7), a sign that large circuit rebuilds were costly for them (my inference).
+
+Evidence:
+
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGCircuit.h>
+
+  ```text
+  Marks the circuit as changed or for a full rebuild (slow).
+  ```
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGCircuitSubsystem.h>
+
+  ```text
+  Multiple calls to this functions the same frame only triggers one rebuild.
+  ```
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Private/FGCircuitSubsystem.cpp>
+
+  ```text
+  this->PrimaryActorTick.bAllowTickOnDedicatedServer = true;
+  ```
+- <https://github.com/satisfactorymodding/SatisfactoryModLoader/blob/d2162c999bbaa9650594ee9ad6e6e06190306009/Source/FactoryGame/Public/FGCircuit.h>
+
+  ```text
+  Hax to be able to disable replication when no one is looking at the circuit
+  ```
+- <https://github.com/Satisfactory-KMods/public-source/blob/129a67aadedc92368ca1db9b6c01bc2e5c6c6f41/KPrivateCodeLib/Source/KPrivateCodeLib/Private/Network/KPCLNetwork.cpp>
+
+  ```text
+  static constexpr int32 KFaxitCircuitParallelGroups = 7;
+  ```
+
+### c22 (verified-primary)
+
+FIN's graph costs, from code: each circuit is a replicated actor with bAlwaysRelevant and DORM_Awake and a replicated Nodes array; recalculation is a recursive DFS with a recursive reachability check that the code itself marks 'slow!'. Circuitry gates tick every frame with DORM_Never (c6). These are structural costs; no benchmark was found for either.
+
+Evidence:
+
+- <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/Source/FicsItNetworksCircuit/Private/FINNetworkCircuit.cpp>
+
+  ```text
+  bAlwaysRelevant = true;
+  ```
+- <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/Source/FicsItNetworksCircuit/Public/FINNetworkCircuit.h>
+
+  ```text
+  slow! You should use HasNode since it uses the cache.
+  ```
+
+### c23 (verified-primary)
+
+Official patch notes (Coffee Stain, via the Steam News API) contain no numeric limit on wires or circuits. They mention 'Optimized Power Lines' (Update 4) and 'Potential fix for a crash in the Circuit Subsystem' (v1.0.0.5), which shows the subsystem has had stability work but gives no cliff.
+
+Evidence:
+
+- <https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/4117954073017520632>
+
+  ```text
+  Optimized Power Lines
+  ```
+- <https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/6146943657174033384>
+
+  ```text
+  Potential fix for a crash in the Circuit Subsystem
+  ```
+
+### c24 (unverified)
+
+NOT FOUND: any published practical limit for the number of wires, connectors or circuits per world, or any benchmark of vanilla circuit rebuild cost. Tried: SDK headers and stub constructors, docs.ficsit.app (the PowerNetwork page is a stub that admits 'We currently don't really know how the power network works'), the full Steam news feed (300 items), wiki.gg and the Fandom wiki (402), a hosting-company blog (timeout), and GitHub code search. A budget has to be measured on the owner's dedicated server (see openQuestions).
+
+Evidence:
+
+- <https://docs.ficsit.app/satisfactory-modding/latest/Development/Satisfactory/PowerNetwork.html>
+
+  ```text
+  currently don’t really know how the power network works, but we do know how we can use it
+  ```
+
+### c25 (secondary)
+
+Numeric-channel wireless: Factorio's radar 'Universe Mode' broadcasts to a selectable channel and every radar on the same channel receives it. No Satisfactory mod with numeric channels or frequencies was found, only actor-reference links (c19) or powered-radar-tower wireless (c18). The SMR 'Wireless Power' mod (2022, SML ^3.2.0, no source) was not inspected. So a channel registry is feasible in principle (a replicated ModSubsystem mapping int -> members) but has no in-game precedent evidence.
+
+Evidence:
+
+- <https://wiki.factorio.com/Circuit_network>
+
+  ```text
+  Radars will transmit any signals passed to it to a particular selectable channel. The signal will be picked up by all other radars set to the same channel
+  ```
+
+### c26 (verified-primary)
+
+Design references from the games the owner cited: Factorio circuit networks are shared buses (devices on a wire sum all signals, same-colour wires merge networks, wires can run across power poles); Minecraft redstone dust is adjacency-based with attenuation (transmits up to 15 blocks, weaker signals travel less). Vanilla Satisfactory circuits resemble the Factorio bus model (c3), not the Minecraft adjacency model.
+
+Evidence:
+
+- <https://wiki.factorio.com/Circuit_network>
+
+  ```text
+  A circuit network consists only of those devices connected together with the same color wire.
+  ```
+- <https://wiki.factorio.com/Circuit_network>
+
+  ```text
+  Receiving devices sum all signals from each wire connected to them, even red and green wires.
+  ```
+- <https://minecraft.wiki/w/Redstone_Dust>
+
+  ```text
+  Redstone wire is a non-solid block that can transmit a redstone power signal up to 15 blocks in distance; signal strengths below 15 have reduced distance.
+  ```
+
+### c27 (verified-primary)
+
+Editor-asset needs (matters because this session has no Unreal): the logic classes (circuit, connector, wire, hologram, gate logic) can be written as C++ text, as KMods did. But the buildable chain still needs Content: KMods' cable class is UCLASS(Abstract) (needs a Blueprint child), FIN loads its cable descriptor from a Content path (Desc_NetworkCable), and Circuitry ships its gates as hundreds of .uasset files (uplugin CanContainContent true). The owner's existing CompanionPresence is C++-only (no Content). Whether descriptors, recipes and meshes can be avoided by reusing vanilla assets by path (SmartFoundations loads Build_PowerLine by path) or by ContentLib was not established.
+
+Evidence:
+
+- <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/Source/FicsItNetworksCircuit/Private/FINNetworkConnectionComponent.cpp>
+
+  ```text
+  OutAllowedConnections.Add(LoadClass<UFGBuildingDescriptor>(NULL, TEXT("/FicsItNetworks/Buildings/Network/NetworkCable/Desc_NetworkCable.Desc_NetworkCable_C")));
+  ```
+- <https://github.com/Satisfactory-KMods/public-source/blob/129a67aadedc92368ca1db9b6c01bc2e5c6c6f41/KPrivateCodeLib/Source/KPrivateCodeLib/Public/Network/KPCLNetworkCable.h>
+
+  ```text
+  class KPRIVATECODELIB_API AKPCLNetworkCable : public AFGBuildableWire
+  ```
+- <https://github.com/Scordium/FicsitWiremod/blob/4e9fff3e3e1254c1b418bdf4d9148994f3ff0162/FicsitWiremod.uplugin>
+
+  ```text
+  "CanContainContent": true,
+  ```
+
+### c28 (verified-primary)
+
+FIN needs small header patches to build (SML_Patch.patch adds friend declarations to some FactoryGame headers). Daisy Chain Everything and similar mods use SML AccessTransformers instead. Any plan that touches private circuit members (mCircuitType, mMaxNumConnectionLinks, mWireMesh are protected or private) needs an AccessTransformers.ini or a C++ subclass constructor.
+
+Evidence:
+
+- <https://github.com/Panakotta00/FicsIt-Networks/blob/789c32fdc857fc9971f7f73fbbf3789c64f637bc/README.md>
+
+  ```text
+  This will add simple changes to the header files that are necessary for FicsIt-Networks to build properly.
+  ```
+
+## Catalog
+
+| Name | Reference | Licence | Last updated | Relevance |
+| --- | --- | --- | --- | --- |
+| [SatisfactoryModLoader (SDK headers)](https://github.com/satisfactorymodding/SatisfactoryModLoader/tree/d2162c999bbaa9650594ee9ad6e6e06190306009) | SML | GPL-3.0 | 2026-08-11 | Primary source for vanilla wire/circuit class design and native defaults. |
+| [FicsIt-Networks](https://github.com/Panakotta00/FicsIt-Networks) | FicsItNetworks | GPL-3.0 | 2025-09-09 (v1.2.0 master); development branch 1.3.0 at 2026-10-08 | Alternative B (own graph + cable). Copying code makes our mod GPL-3.0. |
+| [Circuitry - Logic gates and More (FicsitWiremod)](https://github.com/Scordium/FicsitWiremod) | FicsitWiremod | none (GitHub API license null, no LICENSE file) | 2026-09-26 (v14.1.63) | Direct niche overlap and alternative C; design reference only. Targets SML ^3.12.0, game >=502094. |
+| [KMods public-source / KPrivateCodeLib (KMods Library - Code)](https://github.com/Satisfactory-KMods/public-source) | KPrivateCodeLib | MIT for source code, proprietary for assets (README) | 2026-08-30 (SMR 2026.3.514); repo commit 2026-09-13 | Only found example of alternative A (new circuit type on vanilla wire machinery) with permissive code licence. |
+| [Daisy Chain Everything](https://github.com/mklierman/SatisfactoryMods/tree/c154da4e9b7f74b0e03a4633aa4de42af452cc4d/DaisyChainEverything) | DaisyChainEverything | GPL-3.0 | 2026-08-12 (v1.2.0) | Shows per-connector link cap is a mutable property; hook and access pattern. |
+| [Cable Choices Plus](https://github.com/DavidHGillen/Satisfactory_AB-CableChoices) | AB_CableMod | none (no LICENSE file) | 2026-10-12 (v1.1.9, game >=513885) | Proof that C++ wire subclasses ship; requires a newer game build than the owner's CL 502094. |
+| [Smart! (SmartFoundations)](https://github.com/majormer/SmartFoundations) | SmartFoundations | NOASSERTION (custom, 'All rights reserved. See LICENSE.md') | 2026-10-06 | Evidence for how to create wires from code safely in multiplayer. |
+| [Smart Wireless Lighting](https://github.com/djtheseira/SmartWirelessLighting) | SmartWirelessLighting | GPL-3.0 | 2025-06-11 (v1.0.10) | Hub-with-link-list precedent (alternative F). |
+| [Wireless Power (SMR)](https://ficsit.app/mod/WirelessPower) | WirelessPower | unknown (no source) | 2022-02-03 | Exists as wireless precedent but mechanism not inspected. |
+| [Satisfactory Modding docs: Multiplayer (RCOs)](https://docs.ficsit.app/satisfactory-modding/latest/Development/Satisfactory/Multiplayer.html) | docs.ficsit.app | docs | fetched 2026-10-13 | Required for any client-side link tool or channel UI. |
+
+## Open questions
+
+- SPIKE on the owner's PC (decides option A vs B): does a direct UFGCircuit subclass (not UFGPowerCircuit) get ticked, replicated to clients and saved? KMods avoids it by faking power. Check what ticks a circuit with no circuit group, how SplitCircuit=nullptr behaves, and whether a save loads after the mod is removed (circuit objects are SaveGame).
+- Does AFGWireHologram work unmodified for a non-power circuit type? Its mCircuitType is a private UPROPERTY() and the auto-pole recipes must be nulled. KMods subclassed it, but its Blueprint defaults were not examined.
+- Which released mod, if any, runs the KMods network at runtime? Only source and SMR library metadata were checked, so runtime viability of c2 is not independently confirmed.
+- Minimum editor assets for a buildable wire and connector (descriptor, recipe, mesh, Blueprint child of an abstract C++ wire, UMG for channel entry). Can vanilla assets by path or ContentLib avoid the editor? Not researched.
+- Measured limits: build a test save with N wires and M gates (for example 1k/5k/10k wires) on a dedicated server and record tick time, rebuild hitch on dismantle, and replication bandwidth. No published limit exists (c24).
+- Product overlap with Circuitry (FicsitWiremod), which already covers logic gates, sensors and radio on SML ^3.12.0 / >=502094. Decide the differentiator (physical redstone-style bus wires, latches/clocks, FRM sensors) or interoperate. Circuitry has no licence, so no code reuse.
+- SMR lists Cable Choices Plus 1.1.9 (2026-10-12) with game_version >=513885, newer than the owner's CL 502094. Confirm whether a newer public or experimental game build exists and whether the SDK pin needs bumping.
+- Hidden connections are SaveGame but not Replicated: confirm that clients see correct circuit membership (via the replicated mCircuitID) for hidden-connection links, or whether a replicated mirror list is needed.
+- Interaction with vanilla flows: Blueprint Designer boundaries, wire upgrade and split (TryUpgrade), zooping and dismantle refund (GetDismantleRefundReturnsMultiplier) must be handled for a custom wire.
+- Licence choice for the new mod: GPL-3.0 if any FIN or DaisyChainEverything code is copied; MIT if only KMods code is reused (check assets); Circuitry and Cable Choices are design-only.
+
+## Recommendations
+
+- EVIDENCE KEY: [V] verified-primary (source/doc quote in claims), [S] secondary, [U] unverified or inference. Columns: Impl and assets | UX | Multiplayer | Save/load | Performance | Licence/reuse.
+- MATRIX A | New circuit type on vanilla machinery (KMods pattern: circuit class + UFGCircuitConnectionComponent subclass + AFGBuildableWire subclass + AFGWireHologram subclass) | Impl: all logic as C++ text [V c2]; wire/descriptor/mesh/BP child need the editor [V c27] | UX: vanilla wire-gun feel, snapping, length and designer checks for free, but auto-pole recipes must be nulled [V c9] | MP: vanilla replication of mCircuitID, mWires and circuit sub-objects [V headers]; custom type behaviour [U c4] | Save: SaveGame wires/circuits [V]; uninstall safety [U] | Perf: vanilla rebuild path, no numbers [U c21,c24] | Licence: KMods source MIT [V c17] | Caveat: gives a shared bus, so gates need in/out circuits [V c3]; runtime viability unproven [U c4].
+- MATRIX B | Own graph + own cable (FIN pattern) | Impl: C++ for graph, cable, hologram [V c5]; cable descriptor and mesh in Content [V c27]; no dependence on closed circuit internals [V c5] | UX: custom multi-step hologram, more code (poles, plugs, adapters) [V c9,c15] | MP: own replication, circuit actor bAlwaysRelevant, cable endpoints Replicated+SaveGame [V c5,c22] | Save: cables saved, graph rebuilt on load [V c5] | Perf: recursive DFS, actor per circuit, no benchmark [V c22 / U numbers] | Licence: GPL-3.0 if code copied [V c17] | Best proven fallback (FIN has ~209k downloads).
+- MATRIX C | Pull links by reflection + visual wire actor (Circuitry pattern) | Impl: C++ plus hundreds of gate assets [V c6,c27] | UX: link tool and UI, free-form wires, no vanilla snapping [V c6] | MP: Replicated InputConnections plus RCO calls [V c6,c7] | Save: SaveGame FConnectionData with UObject* [V c6,c20] | Perf: every gate ticks, DORM_Never, no numbers [V c6 / U numbers] | Licence: none, design only [V c6] | Direct overlap with an existing top mod; avoid copying its niche.
+- MATRIX D | Hidden connections (AddHiddenConnection) driven by a link tool, adjacency or channel registry | Impl: C++ only, BlueprintCallable [V c8]; needs a hidden connector flag on one end [V c8] | UX: custom (no wire) [U] | MP: mHiddenConnections not Replicated, membership via mCircuitID [V c8 / U client view] | Save: SaveGame [V c8] | Perf: vanilla circuit merge/split, no numbers [U] | Licence: vanilla API | Good wireless primitive if option A is viable.
+- MATRIX E | Numeric channel or frequency registry in a replicated ModSubsystem | Impl: C++; UMG for number entry needs editor [U] | UX: simple, many-to-many, no wires [S c25] | MP: set via RCO, state via replicated subsystem [V c7] | Save: SaveGame ints and refs [U] | Perf: O(1) lookup, no graph rebuild [U] | Precedent: Factorio radar channels [S c25]; no Satisfactory example found [U].
+- MATRIX F | Link tool storing actor references (hub list or per-device pointer) | Impl: C++ logic; tool UI needs UMG [U] | UX: direct, wire-free, needs good link visualisation [V c19] | MP: replicated ref arrays + RCO [V c19,c20] | Save: SaveGame refs work in shipped mods [V c20]; prune dangling refs in PreSave [V c20] | Perf: cost only on change [U] | Precedents: Circuitry radio, SmartWirelessLighting [V c19].
+- MATRIX G | Adjacency or socket snapping (Minecraft-like, breadboard grid) | Impl: hologram snapping code; Circuitry breadboard stores grid cells as SaveGame [V c6 repo] | UX: no cables, strong spatial constraint, limits layouts [S c26] | MP: only building placement replicates [U] | Save: building positions only [U] | Perf: neighbour query at build time [U] | Evidence: Minecraft adjacency model [V c26]; weakest fit for a big factory.
+- RECOMMENDED PATH: run a time-boxed spike of option A on the owner's PC first. Go/no-go tests: custom UFGCircuit subclass ticks on a dedicated server, replicates to a client, survives save/load and loads after the mod is removed, and a hologram with auto-pole recipes nulled builds and upgrades. If it fails, drop to a FIN-style own graph (B), keeping the same gameplay model. Do not copy Circuitry's pull model.
+- GATE MODEL (design inference [U]): treat each logic circuit as a shared bus carrying a value (Factorio-style sum or OR). A gate is a building with an input connector on one circuit and an output connector on another, evaluated once per tick with a one-tick delay. This avoids evaluation-order loops, fits vanilla's membership semantics (c3) and gives latches and clocks naturally.
+- WIRELESS AND UI: add wire-free links through hidden connections (D) or a replicated channel registry (E), and a link tool only where cables are impractical. Every client-side edit goes through an RCO (c7). Cap per-world counts in config until measured, since there is no known limit (c24).
+- VPS vs PC split: write and unit-test pure logic here as plain C++ (circuit graph, gate truth tables, tick scheduler, channel registry) with g++ and no Unreal; this is feasible only for code that does not include FactoryGame headers [U]. Anything touching UFGCircuit, holograms, descriptors, recipes, meshes, UMG or packaging needs the owner's PC with UE 5.6.1-css-83 and Alpakit.
+- LICENCE: choose MIT or GPL-3.0 deliberately. Reuse only KMods (MIT source) or write clean-room; any FIN or DaisyChainEverything code forces GPL-3.0; Circuitry and Cable Choices are design-only.
+

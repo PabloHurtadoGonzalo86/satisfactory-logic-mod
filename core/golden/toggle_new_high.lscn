@@ -1,0 +1,4 @@
+lscn 1
+ticks 4
+e 1 add c 2 toggle seed=0
+e 1 add w 1.o 2.0

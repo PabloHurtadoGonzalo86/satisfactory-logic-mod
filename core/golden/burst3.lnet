@@ -1,0 +1,7 @@
+lnet 1
+c 1 sensor
+c 2 sensor
+c 3 actuator
+c 4 actuator
+w 1.o 3.0
+w 2.o 4.0

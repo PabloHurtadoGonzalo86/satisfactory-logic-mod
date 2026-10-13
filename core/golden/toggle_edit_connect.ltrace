@@ -1,0 +1,8 @@
+ltrace 1
+row 0 in | st | cmd | h=D80D6DAEA7DC809F
+row 1 in | st 2=0/1 | cmd | h=AE2E242E0249D944
+row 2 in | st 2=0/0 | cmd | h=AE2E252E0249DAF7
+row 3 in | st 2=0/0 | cmd | h=AE2E252E0249DAF7
+row 4 in | st 2=15/1 | cmd | h=ADFB2C2E021E8D43
+row 5 in | st 2=15/1 | cmd | h=ADFB2C2E021E8D43
+row 6 in | st 2=15/1 | cmd | h=ADFB2C2E021E8D43

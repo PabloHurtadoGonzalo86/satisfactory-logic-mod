@@ -1,0 +1,6 @@
+lnet 1
+c 1 sensor
+c 2 gate op=or inv=1 k=1 seed=15
+c 3 actuator
+w 1.o 2.0
+w 2.o 3.0

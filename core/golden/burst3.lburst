@@ -1,0 +1,6 @@
+lburst 1
+net burst3.lnet
+sensor 1 level
+sensor 2 pulse
+call 3 offer 1=15 2=15 | changes 3:0>15
+end tick 3 h=6C3AEAE8B44B71F0

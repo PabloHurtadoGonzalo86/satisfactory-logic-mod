@@ -1,0 +1,810 @@
+{
+ "research": {
+  "topic": "redstone-semantics-and-logic-theory",
+  "summary": "Sourced reference semantics. Minecraft: signal strength is an integer 0-15, dust loses 1 per block (15-block reach), and mechanism components ignore strength; one redstone tick = 2 game ticks = 0.1 s. Repeater restores to 15, delay 1-4 redstone ticks, lockable; torch is NOT (1 tick, burnout above 8 toggles per 60 game ticks); comparator compares, subtracts and reads container fullness as floor(1+fullness*14); observer emits a 2-game-tick pulse. Java and Bedrock differ in torch burnout, piston start delay, lamp turn-off, observer detection and evaluation model (Bedrock: two-phase produce/consume ticks; Java: neighbour-update order plus priority-ordered scheduled ticks). Sourced pathologies: update-order dependence, locational behaviour (secondary: Alternate Current README), quasi-connectivity (Java/console), BUD/stale state, history-dependent burnout. Other games: Factorio (int32 wraparound, additive nets, one tick latency per combinator, loops legal), ComputerCraft (binary/analogue/16-channel bundled), Oxygen Not Included (wired OR, native memory).\nSourced theory: IEEE 1364-2005 says active events \"can be processed in any order\", an essential source of nondeterminism; IEEE 1076-1993 updates all signals before any process runs (basis for double buffering); Lustre rejects zero-delay cycles; Tarjan SCC is linear time; Kahn gives topological order; Verilator caps settling at 10000 iterations.\nProposal (not sourced; checked only by local simulation): synchronous unit-delay model X' = F(X, e), double-buffered, every active component delayed at least one logic tick, so cycles are legal and F is a pure function independent of evaluation order and layout. Domain 0-15 with truthiness, integers only. Settling theorem for acyclic memoryless-plus-delay nets: settled after the longest path (500 random DAGs, 0 violations). Order independence 300/300, versus 214/300 order-dependent for in-place update. NAND and NOR closure reach all 256 three-input functions. Finding: a unit-delay SR latch released from S=R=1 oscillates with period 2, so a native latch and defined initial state are needed. If zero-delay gates are added, apply the Lustre rule (Tarjan plus self-loop test). Unreadable sources (Mojang notes, Mojira, Eichelberger, Halbwachs, Create) are flagged unverified.",
+  "claims": [
+   {
+    "id": "MC1",
+    "statement": "[SOURCED] Minecraft signal strength is an integer 0..15 (Java technical page; 0 is 'no signal'), dust loses 1 per block so a dust line carries at most 15 blocks, and mechanism components ignore the strength (a piston or lamp behaves the same at 1 or 15). Strength only matters to comparators and to analog reads. Internally comparator values are signed 32-bit, clamped to 0..15 when they reach non-comparator components.",
+    "evidence": [
+     {
+      "url": "https://minecraft.wiki/w/Redstone_mechanics/Redstone_signal_(technical)",
+      "quote": "Its value, known as signal strength, can range between 0 and 15 (inclusive)."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_mechanics/Redstone_signal_(technical)",
+      "quote": "For the sake of simplicity, signal strength 0 is often referred to as the lack of a redstone signal."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_mechanics",
+      "quote": "the signal strength decreases by 1 for every block of redstone dust that the signal travels. Redstone dust can thus transmit a signal up to 15 blocks by itself."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_mechanics",
+      "quote": "The strength of a signal does not affect how redstone mechanism components operate."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_mechanics/Redstone_signal_(technical)",
+      "quote": "Signal strength can technically be any non-fractional number between -2147483648 and 2147483647 (inclusive)"
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_mechanics/Redstone_signal_(technical)",
+      "quote": "All redstone components are however limited to the 0-15 range, excluding comparators."
+     }
+    ],
+    "confidence": "verified-primary",
+    "decisionDriving": true
+   },
+   {
+    "id": "MC2",
+    "statement": "[SOURCED] The 'redstone tick' is a community unit equal to 2 game ticks = 0.1 s (game tick = 1/20 s). Most redstone events are multiples of 2 game ticks, but not all (dust, observer pulses and some Java behaviours work at game-tick granularity).",
+    "evidence": [
+     {
+      "url": "https://minecraft.wiki/w/Redstone_mechanics",
+      "quote": "A common convention is to measure times of redstone events in \"redstone ticks\", which are equivalent to 2 game ticks (0.1 seconds)."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_mechanics",
+      "quote": "\"Redstone tick\" is a community-created term, and not an official unit of time."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Tick",
+      "quote": "The game normally runs at a fixed rate of 20 ticks per second, so one tick happens every 0.05 seconds"
+     }
+    ],
+    "confidence": "verified-primary",
+    "decisionDriving": false
+   },
+   {
+    "id": "MC3",
+    "statement": "[SOURCED] Repeater: diode (one direction only), restores a signal to 15, delay 1..4 redstone ticks (2/4/6/8 game ticks), and can be locked by another repeater/comparator (output frozen whatever the input does). Java-only: a scheduled-tick rule that silently drops a second scheduled tick makes very short off-pulses able to turn a repeater off, and 'instant repeater' circuits exist. Bedrock stores the delay as delay minus 1.",
+    "evidence": [
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Repeater",
+      "quote": "A redstone repeater can \"repeat\" a redstone signal, boosting it back up to power level 15."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Repeater",
+      "quote": "Each use increases the repeater's delay by two ticks, to a maximum of eight, then reverting back to two ticks."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Repeater",
+      "quote": "A repeater transmits signals only from its back to its front, but its behavior can be modified from the side"
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Repeater",
+      "quote": "When locked, the repeater does not change its output (whether powered or unpowered), no matter what the input does."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Repeater",
+      "quote": "However, only one tick can be scheduled at a time, and any attempt to schedule a tick while one already exists is completely ignored."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Repeater",
+      "quote": "As a consequence, even a very short off-pulse can cause a repeater to turn off, if it happens to occur at the same time as a previously scheduled tick to turn off."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Repeater",
+      "quote": "instant repeater circuits are possible (circuits that repeat a signal with no delay)."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Repeater",
+      "quote": "1,2,3,4|The redstone repeater's delay in redstone ticks (double game ticks)."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Repeater",
+      "quote": "repeater_delay|0|0,1,2,3|The redstone repeater's delay in redstone ticks (double game ticks) minus 1."
+     }
+    ],
+    "confidence": "verified-primary",
+    "decisionDriving": false
+   },
+   {
+    "id": "MC4",
+    "statement": "[SOURCED] Redstone torch = NOT gate: 0 becomes 15, 1..15 become 0; delay 2 game ticks (1 redstone tick); strongly powers only the block above, weakly powers other neighbours. Burnout: forced off more than 8 times in 60 game ticks. Java and Bedrock differ: in Java a burned-out torch 'might or might not' relight after 160 ticks depending on the update chain (bug MC-120938); in Bedrock a torch only burns out if it powers itself with no delay. History: Java 14w25a removed random self-repair.",
+    "evidence": [
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Torch",
+      "quote": "power level 0 is changed to 15 and power levels 1 to 15 are changed to 0"
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Torch",
+      "quote": "A redstone torch takes 2 game ticks (0.1 seconds barring lag) to change state."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Torch",
+      "quote": "A lit redstone torch strongly powers the block above itself and weakly powers its other direct neighbor blocks, excluding the one it is attached to."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Torch",
+      "quote": "A redstone torch experiences \"burn-out\" when it is forced to turn off more than eight times in 60 game ticks (3 seconds)."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Torch",
+      "quote": "a redstone torch might or might not attempt to turn itself back on after 160 ticks (8 seconds) depending on the update chain that caused it to burn out."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Torch",
+      "quote": "each redstone torch can only burn itself out; the redstone torch needs to be in a circuit that causes it to power itself with no delay, otherwise it does not burn out."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Torch",
+      "quote": "Burned-out redstone torches no longer randomly fix themselves."
+     }
+    ],
+    "confidence": "verified-primary",
+    "decisionDriving": false
+   },
+   {
+    "id": "MC5",
+    "statement": "[SOURCED] Comparator: compare mode outputs the rear value if neither side input exceeds it, else 0; subtract mode outputs max(rear - max(sides), 0); it also reads container fullness with signal = floor(1 + (sum of slot fullnesses / slot count) x 14) (empty container -> no signal); delay 2 game ticks. Java comparators can miss 2-game-tick pulses; Bedrock lets comparators read through more blocks.",
+    "evidence": [
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Comparator",
+      "quote": "If either side input is greater than the rear input, the comparator output turns off. If neither side input is greater than the rear input, the comparator outputs the same signal strength as its rear input."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Comparator",
+      "quote": "A redstone comparator in subtraction mode (front torch up and powered) subtracts the signal strength of the greater side input from the signal strength of the rear input."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Comparator",
+      "quote": "signal strength = floor(1 + ((sum of all slots' fullnesses) ÷ (number of slots in container)) × 14)"
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Comparator",
+      "quote": "A redstone comparator with no powered sides outputs the same signal strength as its rear input, with a 2 game tick delay."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Comparator",
+      "quote": "redstone comparators do not always respond to 2 game tick fluctuations of redstone power."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Comparator",
+      "quote": "the list of comparator-conducting blocks also includes some non-conductive blocks."
+     }
+    ],
+    "confidence": "verified-primary",
+    "decisionDriving": false
+   },
+   {
+    "id": "MC6",
+    "statement": "[SOURCED] Observer, lamp and piston as sensor/actuator references. Observer emits a full-strength pulse of 2 game ticks when it detects a change (Java: shape updates; Bedrock: acts as a block-update detector, aligned to redstone ticks). Lamp: lights instantly, turns off after 4 ticks (Java) or 6 ticks (Bedrock). Piston: start delay 0 or 1 game tick in Java depending on the game phase in which it is powered, fixed 2 game ticks in Bedrock (activates only on a consume tick).",
+    "evidence": [
+     {
+      "url": "https://minecraft.wiki/w/Observer",
+      "quote": "When it detects something, the observer emits a redstone pulse of strong power at signal strength 15 for 2 game ticks."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Observer",
+      "quote": "an observer detects shape updates coming from the block it's facing."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Observer",
+      "quote": "an observer acts as a block update detector and detects anything that causes a block update."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Observer",
+      "quote": "it is aligned to redstone ticks and will detect block updates only on odd game ticks"
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Lamp",
+      "quote": "A redstone lamp activates instantly, but takes 4 ticks (0.2 seconds) to turn off"
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Lamp",
+      "quote": "or 6 ticks (0.3 seconds) to turn off"
+     },
+     {
+      "url": "https://minecraft.wiki/w/Piston",
+      "quote": "A piston won't extend or retract immediately when it is activated: this phenomenon is known as \"start delay\"."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Piston",
+      "quote": "0 ticks if powered during the scheduled tick, random tick or block event phase; 1 tick if powered during the entity or block entity phase, or during player input handling."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Piston",
+      "quote": "Fixed 2 game ticks"
+     }
+    ],
+    "confidence": "verified-primary",
+    "decisionDriving": false
+   },
+   {
+    "id": "MC7",
+    "statement": "[SOURCED] Strong vs weak power is leaky vanilla terminology: a block is strongly powered by a power component/repeater/comparator and only weakly powered by dust, and weakly powered blocks cannot power dust. The Java technical page says the real cause is an implementation flag (all wires report 0 while any wire checks for power), not two kinds of power; and that signals are directional (per-side strengths). Both pages are partly conjecture/Java-specific.",
+    "evidence": [
+     {
+      "url": "https://minecraft.wiki/w/Redstone_mechanics",
+      "quote": "Strongly powered blocks can power redstone dust, and weakly powered blocks cannot."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_mechanics",
+      "quote": "A block becomes weakly powered when it is powered only by redstone dust."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_mechanics/Redstone_signal_(technical)",
+      "quote": "the strength of the emitted signal and direct signal of all redstone wires in the game is temporarily changed to 0 whenever any redstone wire is checking for power."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_mechanics/Redstone_signal_(technical)",
+      "quote": "Redstone signals are directional, meaning that a redstone power source can have different signal strengths for each direction"
+     }
+    ],
+    "confidence": "verified-primary",
+    "decisionDriving": false
+   },
+   {
+    "id": "MC8",
+    "statement": "[SOURCED] Java and Bedrock use different evaluation models. Bedrock (per the wiki) computes redstone on separate threads in a two-phase produce/consume tick (the nearest vanilla analogue to a synchronous two-phase model) and block updates are not connected to redstone there. Java relies on neighbour-update order plus scheduled ticks ordered by priority (-3..0) then scheduling order.",
+    "evidence": [
+     {
+      "url": "https://minecraft.wiki/w/Redstone_mechanics",
+      "quote": "the redstone system is calculated on concurrent threads, meaning that redstone updates are processed independently of the main game loop. This architecture utilizes a two-phase tick system, known as produce ticks (P-Ticks) and consume ticks (C-ticks)"
+     },
+     {
+      "url": "https://minecraft.wiki/w/Tick",
+      "quote": "Each redstone tick is split into two deterministic phases:"
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_mechanics",
+      "quote": "Note: In Bedrock Edition, block updates and redstone are not connected."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Tick",
+      "quote": "Block ticks are executed first based on priority, and then based on scheduling order."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Tick",
+      "quote": "If a redstone repeater is depowering, it has a priority of -2."
+     }
+    ],
+    "confidence": "verified-primary",
+    "decisionDriving": false
+   },
+   {
+    "id": "PA1",
+    "statement": "[SOURCED] Pathology: update-order dependence. Java sends neighbour-changed updates in a fixed order (west, east, down, up, north, south) and, for a wire whose signal changes, updates 'datum points' (the wire and its neighbours) in random order, so results can depend on which neighbour is notified first.",
+    "evidence": [
+     {
+      "url": "https://minecraft.wiki/w/Block_update",
+      "quote": "Most blocks send NC updates to their immediate neighbors when they are placed, destroyed, or replaced, in this order: west, east, down, up, north, south."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Block_update",
+      "quote": "Datum points include the wire and the immediate neighbors of the wire, in random order."
+     }
+    ],
+    "confidence": "verified-primary",
+    "decisionDriving": true
+   },
+   {
+    "id": "PA2",
+    "statement": "[SOURCED, secondary for vanilla] Pathology: locational behaviour. The Alternate Current mod README (a mod author's statement about vanilla; the Mojang statement and bug MC-11193 could not be retrieved) says vanilla dust updates in a location-dependent, inconsistent order, and that its non-locational algorithm makes update order predictable.",
+    "evidence": [
+     {
+      "url": "https://github.com/SpaceWalkerRS/alternate-current",
+      "quote": "As a side effect of these changes the block update order of redstone dust networks is predictable and intuitive rather than locational and chaotic."
+     },
+     {
+      "url": "https://github.com/SpaceWalkerRS/alternate-current",
+      "quote": "The recursive nature in which it updates, combined with the location-dependent order in which each wire updates its neighbors, makes the order in which neighbors of a wire network are updated incredibly inconsistent and seemingly random."
+     },
+     {
+      "url": "https://github.com/SpaceWalkerRS/alternate-current",
+      "quote": "Emit block and shape updates in a deterministic, non-locational order, fixing bug MC-11193."
+     }
+    ],
+    "confidence": "secondary",
+    "decisionDriving": true
+   },
+   {
+    "id": "PA3",
+    "statement": "[SOURCED] Pathology: quasi-connectivity (Java and console only). Pistons, droppers and dispensers are activated by a signal that would activate the space above them even if that space is air; the wiki says it is intended ('works as intended') and that the piston may not notice the signal until a later block update.",
+    "evidence": [
+     {
+      "url": "https://minecraft.wiki/w/Tutorial:Quasi-connectivity",
+      "quote": "pistons can also be activated if one of the normal methods would activate a mechanism component in the space above the piston, even if none are present, or even if the block above the piston is non-conductive (including air)."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Tutorial:Quasi-connectivity",
+      "quote": "it is officially recognized as a feature that \"works as intended\""
+     },
+     {
+      "url": "https://minecraft.wiki/w/Tutorial:Quasi-connectivity",
+      "quote": "A piston does not always realize it's receiving a redstone signal when being powered by quasi-connectivity."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Tutorial:Quasi-connectivity",
+      "quote": "{{exclusive|java|console}}"
+     }
+    ],
+    "confidence": "verified-primary",
+    "decisionDriving": false
+   },
+   {
+    "id": "PA4",
+    "statement": "[SOURCED] Pathology: block-update detectors (BUD) and stale state. BUDs exploit the game failing to update a block; Java wire reconfiguration may not notify neighbours; most BUDs do not work in Bedrock because redstone there is largely separate from block updates (a Java/Bedrock semantic split). Related: 0-tick pulses rely on a known bug (MC-8328).",
+    "evidence": [
+     {
+      "url": "https://minecraft.wiki/w/Tutorial:Block_update_detector",
+      "quote": "a redstone circuit is put in a state where it should be following a mechanic, but the game has not updated the block to follow this rule."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Tutorial:Block_update_detector",
+      "quote": "Most of the BUD switches listed below do not work on Bedrock Edition, since redstone is largely separate from block updates."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_Dust",
+      "quote": "it does not update other redstone components around it of the change unless that reconfiguration also includes a change in power level or another component provides an update."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Tutorial:Zero-ticking",
+      "quote": "When a piston receives a pulse that turns on and off in the same tick, this is known as a 0-tick pulse."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Tutorial:Zero-ticking",
+      "quote": "{{Uses bug|bugid=MC-8328}}"
+     }
+    ],
+    "confidence": "verified-primary",
+    "decisionDriving": false
+   },
+   {
+    "id": "EN1",
+    "statement": "[SOURCED] Minecraft builders already treat a 0..15 wire as a 'hex wire' carrying one hexadecimal digit, equivalent in information to a 4-bit binary bus; word-sized values use parallel binary lines (buses). RS latches have an 'undefined' input combination (both inputs on). CC:Tweaked exposes the same wire three ways: binary (1 and 15 equal), analogue 0..15, and 16-channel bundled cables.",
+    "evidence": [
+     {
+      "url": "https://minecraft.wiki/w/Redstone_circuits/Transmission",
+      "quote": "An analog encoding in Minecraft (a.k.a. hexadecimal wire or simply hex wire) is a transmission that outputs the same signal strength it receives as input. Because power levels can vary from 0 to 15, an analog transmission can convey 16 states in a single wire."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_circuits/Transmission",
+      "quote": "A binary encoding consists of multiple digital lines run in parallel, with each line representing a different digit in a single binary number."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_circuits/Transmission",
+      "quote": "A 4-bit binary encoding contains the same amount of information as an analog line, i.e. 16 states."
+     },
+     {
+      "url": "https://minecraft.wiki/w/Redstone_circuits/Memory",
+      "quote": "An RS latch has set (S) and reset (R) inputs. Usually, the R and S inputs are not allowed to be ON at the same time."
+     },
+     {
+      "url": "https://tweaked.cc/module/redstone.html",
+      "quote": "These simply check if a redstone wire has any input or output. A signal strength of 1 and 15 are treated the same."
+     },
+     {
+      "url": "https://tweaked.cc/module/redstone.html",
+      "quote": "These allow you to send 16 separate on/off signals."
+     },
+     {
+      "url": "https://tweaked.cc/module/redstone.html",
+      "quote": "Whenever a redstone input changes, a redstone event will be fired."
+     }
+    ],
+    "confidence": "verified-primary",
+    "decisionDriving": false
+   },
+   {
+    "id": "FA1",
+    "statement": "[SOURCED] Factorio circuit network: signals are signed 32-bit integers with wraparound; a net sums all contributions on the same channel; red and green wires form separate nets that are summed at a receiver; every combinator adds exactly one tick of latency, so feedback loops are legal and well defined (they just take time). Constant combinators are always-on sources; decider combinators compare and output; arithmetic combinators do int math including bitwise ops.",
+    "evidence": [
+     {
+      "url": "https://wiki.factorio.com/Circuit_network",
+      "quote": "Numbers are in the signed 32 bit integer range, i.e. from -2147483648 to 2147483647 inclusive"
+     },
+     {
+      "url": "https://wiki.factorio.com/Circuit_network",
+      "quote": "The numbers wrap around on overflow, so e.g. 2147483647 + 10 becomes -2147483639."
+     },
+     {
+      "url": "https://wiki.factorio.com/Circuit_network",
+      "quote": "Multiple broadcasts of the same item or fluid are additive"
+     },
+     {
+      "url": "https://wiki.factorio.com/Circuit_network",
+      "quote": "Receiving devices sum all signals from each wire connected to them, even red and green wires."
+     },
+     {
+      "url": "https://wiki.factorio.com/Decider_combinator",
+      "quote": "there is one tick (60th of a second) of latency before the output signal is ready to be used as an input into a circuit network."
+     },
+     {
+      "url": "https://wiki.factorio.com/Circuit_network",
+      "quote": "Connecting the output network back to the input network will result in a feedback loop."
+     },
+     {
+      "url": "https://wiki.factorio.com/Decider_combinator",
+      "quote": "A condition consists of a \"first\" input signal, a comparison (>, <, =, >=, <=, !=), and a \"second\" input signal or constant."
+     },
+     {
+      "url": "https://wiki.factorio.com/Arithmetic_combinator",
+      "quote": "The arithmetic combinator accepts two input connections (red and green wires), and sends its output to both output connections."
+     },
+     {
+      "url": "https://wiki.factorio.com/Constant_combinator",
+      "quote": "It constantly outputs the selected signal(s) to all connected wire networks without the need for a specific input"
+     }
+    ],
+    "confidence": "verified-primary",
+    "decisionDriving": true
+   },
+   {
+    "id": "OT1",
+    "statement": "[SOURCED, secondary] Oxygen Not Included automation (community wiki): one-bit wires where the net is green if ANY connected output is green (a wired OR), all endpoints updated 'instantly and simultaneously'; gates plus native Memory Toggle and Signal Counter buildings; multi-bit 'ribbon' wires with a bit depth. Create's Redstone Link and Project:Red could not be verified from a primary source (see UN1).",
+    "evidence": [
+     {
+      "url": "https://oxygennotincluded.wiki.gg/wiki/Automation_Wire",
+      "quote": "The wire is green if any connected output is green and red otherwise. All endpoints of connected wires are instantly and simultaneously updated."
+     },
+     {
+      "url": "https://oxygennotincluded.wiki.gg/wiki/Automation_Wire",
+      "quote": "Sending an Automation Signal with a higher Bit Depth than the connected Logic Wire can result in damage to the circuit."
+     },
+     {
+      "url": "https://oxygennotincluded.wiki.gg/wiki/Automation_(Building)",
+      "quote": "name=\"BUFFER Gate\" OR name=\"FILTER Gate\" OR name=\"Memory Toggle\" OR name=\"Signal Counter\""
+     }
+    ],
+    "confidence": "secondary",
+    "decisionDriving": false
+   },
+   {
+    "id": "TH1",
+    "statement": "[SOURCED, secondary] NAND alone and NOR alone are functionally complete (every Boolean function, hence every logic gate, can be built from either); Sheffer 1913 is the canonical citation (bibliographic record only, text not read). Local exhaustive check (this session, no external source): closure of NAND, and of NOR, over the 3 projection tables reaches all 256 three-input Boolean functions.",
+    "evidence": [
+     {
+      "url": "https://en.wikipedia.org/wiki/Functional_completeness",
+      "quote": "In particular, all logic gates can be assembled from either only binary NAND gates, or only binary NOR gates."
+     },
+     {
+      "url": "https://api.crossref.org/works/10.1090/S0002-9947-1913-1500960-1",
+      "quote": "A set of five independent postulates for Boolean algebras, with application to logical constants"
+     }
+    ],
+    "confidence": "secondary",
+    "decisionDriving": false
+   },
+   {
+    "id": "TH2",
+    "statement": "[SOURCED] IEEE 1364-2005 (Verilog) event model: the queue has active/inactive/nonblocking-update/monitor regions and events 'can be processed in any order' within the active region; the standard itself calls this freedom 'an essential source of nondeterminism' and its race example is legal for a simulator to resolve either way. A nonblocking assignment computes its right-hand side now and applies the update later (two-phase). This is the pattern a new design must avoid for its core update. Text read from an unofficial university mirror of the standard.",
+    "evidence": [
+     {
+      "url": "http://staff.ustc.edu.cn/~songch/download/IEEE.1364-2005.pdf",
+      "quote": "Active events occur at the current simulation time and can be processed in any order."
+     },
+     {
+      "url": "http://staff.ustc.edu.cn/~songch/download/IEEE.1364-2005.pdf",
+      "quote": "The freedom to choose any active event for immediate processing is an essential source of nondeterminism in the Verilog HDL."
+     },
+     {
+      "url": "http://staff.ustc.edu.cn/~songch/download/IEEE.1364-2005.pdf",
+      "quote": "Because the execution of expression evaluation and net update events may be intermingled, race conditions are possible"
+     },
+     {
+      "url": "http://staff.ustc.edu.cn/~songch/download/IEEE.1364-2005.pdf",
+      "quote": "The simulator is correct in displaying either a 1 or a 0"
+     },
+     {
+      "url": "http://staff.ustc.edu.cn/~songch/download/IEEE.1364-2005.pdf",
+      "quote": "A nonblocking assignment statement (see 9.2.2) always computes the updated value and schedules the update as a nonblocking assign update event"
+     },
+     {
+      "url": "http://staff.ustc.edu.cn/~songch/download/IEEE.1364-2005.pdf",
+      "quote": "The processing of all the active events is called a simulation cycle."
+     }
+    ],
+    "confidence": "verified-primary",
+    "decisionDriving": true
+   },
+   {
+    "id": "TH3",
+    "statement": "[SOURCED] IEEE 1076-1993 (VHDL) simulation cycle: each cycle first updates all signals, then resumes and runs the processes sensitive to events; no process starts until all signals are updated; a cycle at the same simulation time is a 'delta cycle'. This is the sourced basis for double-buffered (all next values computed from the previous state) evaluation. Text read from an unofficial HTML copy of the LRM.",
+    "evidence": [
+     {
+      "url": "https://rti.etf.bg.ac.rs/rti/ri5rvl/tutorial/TUTORIAL/IEEE/HTML/1076_12.HTM",
+      "quote": "The execution of a model consists of an initialization phase followed by the repetitive execution of process statements in the description of that model. Each such repetition is said to be a simulation cycle."
+     },
+     {
+      "url": "https://rti.etf.bg.ac.rs/rti/ri5rvl/tutorial/TUTORIAL/IEEE/HTML/1076_12.HTM",
+      "quote": "no process actually begins to execute until all signals have been updated and all executable processes for this simulation cycle have been identified."
+     },
+     {
+      "url": "https://rti.etf.bg.ac.rs/rti/ri5rvl/tutorial/TUTORIAL/IEEE/HTML/1076_AXB.HTM",
+      "quote": "delta cycle: A simulation cycle in which the simulation time at the beginning of the cycle is the same as at the end of the cycle."
+     }
+    ],
+    "confidence": "verified-primary",
+    "decisionDriving": true
+   },
+   {
+    "id": "TH4",
+    "statement": "[SOURCED] A formal critique of Verilog's scheduling freedom: Russinoff (abstract) says the interleaving freedom the standard allows would inevitably lead to race conditions and unpredictable results, and proposes restricting the nondeterministic choice. Supports requiring a deterministic update order or an order-independent update.",
+    "evidence": [
+     {
+      "url": "https://russinoff.com/papers/verilog.html",
+      "quote": "The IEEE Verilog Standard contains a number of ambiguities and inconsistencies with respect to the semantics of event scheduling"
+     },
+     {
+      "url": "https://russinoff.com/papers/verilog.html",
+      "quote": "the degree of freedom allowed by the Standard in the interleaving of concurrent processes is impractical, and if fully exercised, would inevitably lead to race conditions and unpredicable results."
+     }
+    ],
+    "confidence": "secondary",
+    "decisionDriving": false
+   },
+   {
+    "id": "TH5",
+    "statement": "[SOURCED] Levelization and combinational loops in a production simulator (Verilator): logic is ordered in data-flow (dependency) order; combinational cycles require iteration until settled and are broken at back-edges of a ranking; a loop that never settles hits a convergence cap (default example 10000 tries) and aborts with DIDNOTCONVERGE. Precedent for an iteration cap as oscillation guard and for ordering in dependency order.",
+    "evidence": [
+     {
+      "url": "https://github.com/verilator/verilator/blob/master/docs/internals.rst",
+      "quote": "in data-flow (or dependency) order"
+     },
+     {
+      "url": "https://github.com/verilator/verilator/blob/master/docs/internals.rst",
+      "quote": "Combinational loops are broken by the introduction of instances of the 'hybrid' logic class."
+     },
+     {
+      "url": "https://verilator.org/guide/latest/warnings.html",
+      "quote": "Settle region did not converge after '--converge-limit' of 10000 tries"
+     },
+     {
+      "url": "https://verilator.org/guide/latest/warnings.html",
+      "quote": "This is because the signals keep toggling even without time passing."
+     }
+    ],
+    "confidence": "verified-primary",
+    "decisionDriving": false
+   },
+   {
+    "id": "TH6",
+    "statement": "[SOURCED] Synchronous-language practice (Lustre): zero-delay instantaneous dependency cycles are rejected statically; a cycle is only legal if it passes through a unit delay (pre/fby). The check is a dependence graph where edges through a delay are dropped, then reject if the remaining graph is cyclic. Sourced from a lecture note and the Lustre V6 manual (the original 1991 Lustre paper is a scan and could not be quoted).",
+    "evidence": [
+     {
+      "url": "https://www.di.ens.fr/~pouzet/cours/mpri/cours-static-7/causality.pdf",
+      "quote": "The simplest is that of Lustre (and its successor): statically reject instantaneous (unconditional) cycle."
+     },
+     {
+      "url": "https://www.di.ens.fr/~pouzet/cours/mpri/cours-static-7/causality.pdf",
+      "quote": "For every equation x = e, state that x depends on all variables appearing in e but those on the right of a unit delay (pre or fby)."
+     },
+     {
+      "url": "https://www.di.ens.fr/~pouzet/cours/mpri/cours-static-7/causality.pdf",
+      "quote": "reject recursive definitions if the corresponding graph is cyclic"
+     },
+     {
+      "url": "https://www-verimag.imag.fr/DIST-TOOLS/SYNCHRONE/lustre-v6/doc/lv6-ref-man.pdf",
+      "quote": "We have to cut the dependence loop, introducing a “pre” operator"
+     },
+     {
+      "url": "https://www-verimag.imag.fr/DIST-TOOLS/SYNCHRONE/lustre-v6/doc/lv6-ref-man.pdf",
+      "quote": "The synchronous model was introduced to provide abstract primitives assuming that a program reacts instantaneously to external events."
+     }
+    ],
+    "confidence": "secondary",
+    "decisionDriving": true
+   },
+   {
+    "id": "TH7",
+    "statement": "[SOURCED] Graph algorithms: Tarjan (1972) finds strongly connected components in time and space bounded by k1 V + k2 E + k3; Kahn (1962) gives a general topological-ordering procedure. A topological order exists iff the graph is a DAG; a digraph is acyclic iff it has no strongly connected subgraph with more than one vertex (caveat for the model: a single vertex with a self-loop is also a cycle and must be checked separately). Abstracts read from Crossref publisher metadata; the other two statements from Wikipedia.",
+    "evidence": [
+     {
+      "url": "https://api.crossref.org/works/10.1137/0201010",
+      "quote": "An improved version of an algorithm for finding the strongly connected components of a directed graph"
+     },
+     {
+      "url": "https://api.crossref.org/works/10.1137/0201010",
+      "quote": "The space and time requirements of both algorithms are bounded by $k_1 V + k_2 E + k_3 $ for some constants"
+     },
+     {
+      "url": "https://api.crossref.org/works/10.1145/368996.369025",
+      "quote": "The present paper presents a very general method for obtaining topological order."
+     },
+     {
+      "url": "https://en.wikipedia.org/wiki/Topological_sorting",
+      "quote": "A topological ordering is possible if and only if the graph has no directed cycles, that is, if it is a directed acyclic graph (DAG)."
+     },
+     {
+      "url": "https://en.wikipedia.org/wiki/Strongly_connected_component",
+      "quote": "A directed graph is acyclic if and only if it has no strongly connected subgraphs with more than one vertex"
+     }
+    ],
+    "confidence": "verified-primary",
+    "decisionDriving": true
+   },
+   {
+    "id": "TH8",
+    "statement": "[SOURCED, secondary] Oscillation/hazard detection by multivalued simulation: Eichelberger (IBM J. Res. Dev. 1965) introduced ternary simulation (algorithms A and B); a 2010 paper states multivalued simulation detects hazards and oscillations, and that for feedback-free circuits Algorithm A always terminates and B is unnecessary. The content of Eichelberger's own paper was not readable (scan), so only the secondary description is claimed. Glitches (hazards) are transient, and synchronous designs register outputs.",
+    "evidence": [
+     {
+      "url": "https://www.oldcitypublishing.com/?p=8226",
+      "quote": "Multivalued simulation of gate circuits is an efficient method of detecting hazards and oscillations that may occur in the presence of gate and wire delays."
+     },
+     {
+      "url": "https://www.oldcitypublishing.com/?p=8226",
+      "quote": "Ternary simulation, introduced by Eichelberger in 1965, consists of two algorithms, called A and B"
+     },
+     {
+      "url": "https://www.oldcitypublishing.com/?p=8226",
+      "quote": "for which Algorithm A always terminates and Algorithm B is unnecessary."
+     },
+     {
+      "url": "https://api.crossref.org/works/10.1147/rd.92.0090",
+      "quote": "Hazard Detection in Combinational and Sequential Switching Circuits"
+     },
+     {
+      "url": "https://en.wikipedia.org/wiki/Hazard_(logic)",
+      "quote": "Hazards are a temporary problem, as the logic circuit will eventually settle to the desired function."
+     }
+    ],
+    "confidence": "secondary",
+    "decisionDriving": false
+   },
+   {
+    "id": "TH9",
+    "statement": "[SOURCED, secondary] Synchronous abstraction: in synchronous circuits each gate is assumed to compute instantly and wires transmit instantly (Wikipedia on synchronous programming); a cellular automaton applies one fixed rule to the whole grid simultaneously from the previous generation; the critical path is the maximum-delay input-to-output path, the standard bound on how long a combinational network takes to settle.",
+    "evidence": [
+     {
+      "url": "https://en.wikipedia.org/wiki/Synchronous_programming_language",
+      "quote": "Each gate of the circuit (or, and, ...) is therefore assumed to compute its result instantaneously, each wire is assumed to transmit its signal instantaneously."
+     },
+     {
+      "url": "https://en.wikipedia.org/wiki/Cellular_automaton",
+      "quote": "is applied to the whole grid simultaneously"
+     },
+     {
+      "url": "https://en.wikipedia.org/wiki/Static_timing_analysis",
+      "quote": "The critical path is defined as the path between an input and an output with the maximum delay."
+     }
+    ],
+    "confidence": "secondary",
+    "decisionDriving": false
+   },
+   {
+    "id": "UN1",
+    "statement": "[UNVERIFIED] No primary text could be read for: Mojang's own 24w33a 'Redstone Experiments' notes (feedback.minecraft.net returned 403); Mojira bugs MC-13417 / MC-11193 / MC-120938 / MC-8328 (the tracker is a JavaScript app; only the ids as cited by the wiki or the AC README are used); Create's Redstone Link (no official page found); Esterel (Berry & Gonthier 1992) and Benveniste et al. 2003 (memory only); a textbook definition of the 'unit-delay model' (found only lecture-note descriptions); the contents of Eichelberger 1965 and Halbwachs 1991 (scanned PDFs, no text layer).",
+    "evidence": [],
+    "confidence": "unverified",
+    "decisionDriving": false
+   },
+   {
+    "id": "PR1",
+    "statement": "[PROPOSAL, checked locally] Core semantics: a finite component set C, each component with one output value and a private state; every active component has delay >= 1 logic tick; wires are zero-delay nets whose fan-in is merged by a commutative, associative operator with identity 0. One tick is X' = F(X, e): every next value is computed from the previous snapshot X and the sampled sensor input e, never from another next value (double buffering). Then F is a pure total function, so the trace is a function of (X0, e0, e1, ...) and independent of evaluation order, node ids and spatial layout. Local test (300 random cyclic nets): per-node evaluation in random order into a next buffer matched the reference 300/300, while in-place (single buffer) updating differed between two orders in 214/300 nets.",
+    "evidence": [],
+    "confidence": "unverified",
+    "decisionDriving": false
+   },
+   {
+    "id": "PR2",
+    "statement": "[PROPOSAL, checked locally] Settling theorem: for an acyclic wiring graph whose components are memoryless gates and exact delay lines, if sensor inputs are constant from tick t0 then from tick t0 + L the whole state equals the levelized zero-delay fixed point, from ANY initial state, where L is the longest path counted in delays (nodes for unit delay). Hence bounded settling time = depth and no oscillation. Does NOT hold if the net contains stateful primitives (toggle, counter, clock): those are excluded or given their own settling rule. Local test (500 random DAGs with 3 sensors): 0 violations, and the bound was tight in 117 nets.",
+    "evidence": [],
+    "confidence": "unverified",
+    "decisionDriving": false
+   },
+   {
+    "id": "PR3",
+    "statement": "[PROPOSAL, checked locally] Feedback: with every active component delayed by >= 1 tick, cycles are legal and are just finite-state machines; the state space is finite, so every trace with constant inputs is eventually periodic (detectable by cycle detection or an iteration cap, as Verilator does). Local results under synchronous unit delay: a ring of n NOT gates seeded with a single 1 has period 2n for odd n (n=3: 6, 5: 10, 7: 14); an all-zero start makes every ring flip in lockstep with period 2 (no wave); an even ring started alternating is a fixed point. A NOR SR latch built from two gates sets/resets in at most 2 ticks, holds from legal states, but released from S=R=1 it enters a deterministic period-2 oscillation (Q,Qb) = (0,0),(1,1),... where hardware would go metastable. Consequences: define deterministic initial state, and offer a native latch/toggle primitive instead of requiring cross-coupled gates (precedents: repeater locking in Minecraft; Memory Toggle in ONI).",
+    "evidence": [],
+    "confidence": "unverified",
+    "decisionDriving": false
+   },
+   {
+    "id": "PR4",
+    "statement": "[PROPOSAL] If any zero-delay combinational element is added (ergonomics: multi-gate expressions in one tick), the Lustre rule applies: build the graph of zero-delay edges only, run Tarjan SCC (plus a self-loop test), reject or auto-insert a delay on any cycle, and evaluate the rest in topological (levelized) order. Without zero-delay elements no cycle check is needed for correctness; Tarjan is then only a lint/UI aid to label feedback regions. Choose one and state it; a mixed design needs both.",
+    "evidence": [],
+    "confidence": "unverified",
+    "decisionDriving": false
+   },
+   {
+    "id": "PR5",
+    "statement": "[PROPOSAL] Signal domain: default D = {0..15} (one hex digit, matching the sourced Minecraft convention and the 16-state 'hex wire'), truthiness t(x) = (x > 0), canonical true = 15 (restoration like a repeater), saturating arithmetic; net merge = max (idempotent, no overflow) for control wires, optional saturating sum for counting nets; wider integers only as an explicit bus of several 0..15 lanes or a separate int32 port type with Factorio-style defined wraparound. Integers only (no floats) so results are bit-identical on every machine. Exhaustively checkable: merge laws over 16^3 triples, all 2-input gate tables over 16^2.",
+    "evidence": [],
+    "confidence": "unverified",
+    "decisionDriving": false
+   },
+   {
+    "id": "PR6",
+    "statement": "[PROPOSAL] Sensors and actuators: a tick has three phases: (1) sample all sensors once into e; (2) compute F (pure); (3) apply actuator commands to the world in a stable order. A loop actuator -> world -> sensor therefore has at least one tick of delay, so the world never creates a zero-delay cycle. Sensors quantize with a documented formula (e.g. the Minecraft container formula floor(1 + fullness x 14)) and may be level or one-tick-pulse type (Factorio pulse mode precedent); actuators are level-driven, edge behaviour comes from an explicit edge-detector component. Delay lines are exact FIFOs (output(t+d) = input(t)), so unlike the Java repeater no pulse is ever dropped.",
+    "evidence": [],
+    "confidence": "unverified",
+    "decisionDriving": false
+   },
+   {
+    "id": "PR7",
+    "statement": "[PROPOSAL] Test properties that are decidable or checkable: (T1) determinism: identical traces under random evaluation order, node-id permutation and wiring-insertion order; (T2) layout independence: relabelling or translating the whole net does not change the trace; (T3) settling bound = longest weighted path, equal to a levelized reference evaluator, from random initial states; (T4) no oscillation on acyclic memoryless nets (follows from T3); (T5) merge-operator laws and gate truth tables, exhaustively over the 0..15 domain; (T6) functional completeness: every 3-input Boolean function built from NAND (256/256 checked here); (T7) SCC detector equals a naive reachability check on random graphs; (T8) cyclic nets: eventually-periodic detection with an iteration cap; (T9) optimized/incremental evaluator equals the full evaluator (differential test); (T10) record/replay: same inputs give the same state hash every tick, usable as a desync check. Not testable as pure logic: real-time performance and the host game's own nondeterminism.",
+    "evidence": [],
+    "confidence": "unverified",
+    "decisionDriving": false
+   }
+  ],
+  "openQuestions": [
+   "Zero-delay or not: should any combinational element have zero delay (ergonomic multi-gate expressions in one tick), or is every active component delayed by at least 1 logic tick as in the Factorio pattern? This decides whether a Tarjan/self-loop cycle check is mandatory (PR4).",
+   "Signal domain and width: 0..15 (hex digit, Minecraft-like) versus wider integers (Factorio int32 with wraparound) versus buses of 0..15 lanes; and whether to expose a 16-channel bundled port (ComputerCraft precedent).",
+   "Net merge rule: max (idempotent) versus saturating sum (Factorio-style counting). Both are commutative and associative for non-negative values, but they behave differently for fan-in of many sources.",
+   "Reset and initial-state policy: deterministic initial values for latches/delays on build, load, blueprint paste and mod removal; behaviour of a unit-delay SR latch released from S=R=1 (period-2 oscillation) versus a native latch primitive.",
+   "Sensor timing semantics: level versus one-tick pulse sensors; sub-tick events are invisible to a sampled model, so which sensors need pulse-stretching?",
+   "Mapping of the abstract logic tick to real time and to the host game loop, catch-up policy after hitches, and server-authoritative replication with state hashes: out of scope for this topic, to be decided from the engine-side research.",
+   "Performance of full evaluation versus an incremental (dirty-set) evaluator: the incremental one must be proven equal to the full one by differential tests (T9); how many components per tick must the design budget for, given there is no in-circuit burnout?",
+   "Primary text still missing for: Mojang's statements on redstone update-order changes (24w33a), Create's Redstone Link semantics, Eichelberger 1965 and Halbwachs 1991 (scans), and a textbook definition of the unit-delay model. These are flagged unverified and no design decision rests on them.",
+   "Edition choice for reference behaviour: since Java and Bedrock differ (torch burnout, piston start delay, lamp turn-off, observer, quasi-connectivity), the mod should publish its own versioned specification with golden traces instead of promising Minecraft parity."
+  ],
+  "recommendations": [
+   "Adopt a synchronous, double-buffered core: next state is computed only from the previous snapshot plus the sampled sensor values (sourced analogues: VHDL updates all signals before any process runs; Verilog nonblocking assignments; Bedrock produce/consume ticks). Do not copy a notification-propagation model.",
+   "Pathology to avoidance (update-order dependence): there is no update propagation or neighbour-notification order; F is a pure function of the previous snapshot, so any evaluation order gives the same result (test T1).",
+   "Pathology to avoidance (locational behaviour): wiring is an explicit graph; coordinates, ids and insertion order are never inputs to F (test T2: relabel or translate the whole net, traces must match).",
+   "Pathology to avoidance (quasi-connectivity): components receive signals only through declared input ports wired by the player; no implicit geometric or adjacency coupling.",
+   "Pathology to avoidance (BUD and stale state): state is polled every tick, not pushed by events; any dirty-set optimization must be proven equal to full evaluation by differential tests (T9).",
+   "Pathology to avoidance (burnout, dropped or sub-tick pulses): no hidden history-dependent protection rule; protect the server with a per-tick component budget, and if a fuse is wanted make it an explicit component with a documented pure rule. Delay lines are exact FIFOs with minimum delay 1 tick, so no pulse is ever dropped and no 0-tick pulse exists.",
+   "Pathology to avoidance (strong versus weak power, Java versus Bedrock divergence): a signal is just the value on a net; publish one versioned reference semantics with golden traces shared by server, client and tests.",
+   "Choose and state the zero-delay policy explicitly. Recommended for a first version: every active component has delay >= 1 logic tick, wires are zero-delay nets with a commutative-associative merge, cycles are legal (they are state machines) and Tarjan SCC is only a lint that labels feedback regions. If zero-delay gates are later added, apply the Lustre rule: SCC (plus self-loop) test on the zero-delay subgraph, reject or auto-insert a delay, then levelize.",
+   "Default signal domain 0..15 with truthiness (x > 0) and canonical true = 15, integers only; offer a native latch/toggle primitive and a defined initial state rather than relying on cross-coupled gates (unit-delay SR latch released from S=R=1 oscillates with period 2).",
+   "Write the tick as three phases (sample sensors, compute F, apply actuators); any loop through the world therefore has at least one tick of delay. Express all delays in abstract logic ticks until the engine-side research fixes the real-time mapping.",
+   "Implement the checkable properties T1..T10 (PR7) as property-based and exhaustive tests in plain C++ with no engine dependency, so they can run on the Linux VPS; use the Verilator-style iteration cap only as a test/lint guard for cyclic nets.",
+   "State the settling theorem precisely and only for acyclic nets made of memoryless gates and delay lines: from any initial state, after L ticks (longest path counted in delays) with constant inputs the state equals the levelized fixed point. Do not claim it for nets containing counters, toggles or clocks, and do not claim undecidability or complexity results without a source.",
+   "Cite the IEEE texts as unofficial mirrors (1364-2005 at staff.ustc.edu.cn; 1076-1993 HTML at rti.etf.bg.ac.rs) and keep Alternate Current and Wikipedia items labelled secondary; obtain primary text for the unverified items (see UN1) before any of them is used in public documentation."
+  ]
+ },
+ "verdictSets": [
+  {
+   "lens": "source-accuracy",
+   "verdicts": [
+    {
+     "id": "MC1",
+     "verdict": "partially-correct",
+     "evidenceUrl": "https://minecraft.wiki/w/Redstone_mechanics/Redstone_signal_(technical)",
+     "note": "I fetched the pages and grepped them: all six quotes appear verbatim and support the core facts (0..15 range, 0 = lack of signal, dust loses 1 per block and reaches 15 blocks, mechanism components ignore strength, signed 32-bit range, comparators exempt from the 0-15 limit). Problems: (1) 'Strength only matters to comparators and to analog reads' is in neither source. The same claim says dust decays by strength, so 'only' is loose. (2) The technical page covers Java only; it says it is unknown whether it applies to Bedrock. (3) The mechanics page says strength is 'an integer between 1 and 15', so 0 is the no-signal convention. (4) The wiki says signal strength in general is a signed 32-bit integer. It does not single out comparator values. Out-of-range values arise only via bugged containers (negative item stacks), marked '[more information needed]'. The clamp (<0 becomes 0, >15 becomes 15) does appear, for 'any powerable component excluding other comparators'.",
+     "corrected": "Java Edition: signal strength is an integer 0..15, and 0 is conventionally 'no signal'. Dust loses 1 per block and carries up to 15 blocks. Mechanism components ignore the strength (a piston or lamp acts the same at 1 or 15). Strength is read by comparators and by dust decay; I could not confirm that nothing else reads it. Strength is stored as a signed 32-bit integer, but values outside 0..15 come only from comparators fed by bugged containers, and any non-comparator component clamps them to 0..15. Not verified for Bedrock."
+    },
+    {
+     "id": "PA1",
+     "verdict": "partially-correct",
+     "evidenceUrl": "https://minecraft.wiki/w/Block_update",
+     "note": "Both quotes are verbatim on the page (grep-confirmed). Imprecisions: (1) The fixed west,east,down,up,north,south order applies to 'Most blocks' that are placed, destroyed or replaced; the page lists exceptions. (2) For a wire whose signal changes, the datum points (the wire plus its immediate neighbours) are taken 'in random order'. The immediate neighbours of each datum point then get NC updates in the fixed order, so the claim's 'updates datum points in random order' is a loose paraphrase. (3) 'So results can depend on which neighbour is notified first' appears in neither source; it is the claim's inference. (4) Both statements are Java Edition only; the page's Bedrock section is empty. The page says 'random', while the Alternate Current README (PA2) says 'location-dependent'. Mention both.",
+     "corrected": "Java Edition: most blocks send neighbour-changed updates in the fixed order west, east, down, up, north, south. When a redstone wire's signal changes, the wiki says it updates the neighbours (in that fixed order) of the 'datum points', i.e. the wire and its immediate neighbours, which are taken 'in random order'. Consequently the order of side effects among neighbouring components can vary. That consequence is the claim's own inference; Bedrock is undocumented on this page."
+    },
+    {
+     "id": "PA2",
+     "verdict": "confirmed",
+     "evidenceUrl": "https://github.com/SpaceWalkerRS/alternate-current",
+     "note": "All three quotes appear verbatim in the README (grep on the rendered page text). Context matches: the goal list item 3 says 'fixing bug MC-11193', and the 'location-dependent order' sentence describes Vanilla. This is a mod author's statement about vanilla, so 'secondary' is right. I tried bugs.mojang.com/browse/MC-11193 and two REST paths. The tracker is a JS single-page app, and the REST path returned its HTML shell or a 404, so MC-11193 could not be retrieved. The wiki's Block update page (PA1) never uses the words 'location' or 'locational'."
+    },
+    {
+     "id": "FA1",
+     "verdict": "partially-correct",
+     "evidenceUrl": "https://wiki.factorio.com/Decider_combinator",
+     "note": "All nine quotes appear verbatim on the Factorio wiki pages (grep-confirmed): signed 32-bit range with wraparound, additive same-channel signals, red+green summed at receivers, the feedback sentence, decider condition syntax, arithmetic input/output wires, constant combinator. Arithmetic ops include +,-,*,/,%,^,<<,>>,AND,OR,XOR. Problems: (1) The latency sentence reads 'With both the arithmetic and decider combinator, there is one tick ... of latency'. 'Every combinator' is not supported: a constant combinator has no input, and the Selector combinator page (Factorio 2.0) says nothing about latency. (2) The constant combinator 'constantly outputs ... and can be turned on/off in the GUI manually', so it is not strictly always-on. (3) 'Legal and well defined' is an inference; the page says the copper-plate feedback loop climbs 'rapidly (but not instantly)', at a rate set by the tick rate. The page describes Factorio 2.0.",
+     "corrected": "Factorio 2.0: signals are signed 32-bit integers that wrap on overflow. Same-channel contributions on a net add. Red and green wires form separate nets, and a receiver sums both. Arithmetic and decider combinators each add one tick of latency, so a feedback loop through them advances one step per tick. Constant combinators output continuously unless switched off in the GUI. Arithmetic combinators support integer maths and bitwise operations. I could not confirm the latency of selector combinators."
+    },
+    {
+     "id": "TH2",
+     "verdict": "partially-correct",
+     "evidenceUrl": "http://staff.ustc.edu.cn/~songch/download/IEEE.1364-2005.pdf",
+     "note": "I downloaded the 590-page PDF and extracted its text. All six quotes appear verbatim: 11.3 (a) and the 'simulation cycle' sentence, the 'essential source of nondeterminism' sentence, 11.5 'race conditions are possible' and 'The simulator is correct in displaying either a 1 or a 0', and 11.6.4 on nonblocking assignment. The PDF carries an IEEE Xplore licensed-download stamp, so this is IEEE's own text on a university mirror, not a retyped copy. Problems: (1) The standard says the queue has FIVE regions: active, inactive, nonblocking assign update, monitor, and future. The claim names four. (2) The last sentence, 'This is the pattern a new design must avoid for its core update', is not in the source and is the claim author's opinion. Read literally it says to avoid two-phase update, which contradicts TH3, whose double-buffering rests on the same compute-then-commit idea. The nondeterminism the standard identifies is any-order processing of active events and the mixing of expression evaluation with net updates (the 11.5 race). The standard says nonblocking updates 'shall be performed in the order the statements were executed'.",
+     "corrected": "IEEE 1364-2005 11.3: the event queue has five regions (active, inactive, nonblocking assign update, monitor, future). Active events 'can be processed in any order', which the standard calls 'an essential source of nondeterminism', and 11.5 gives a legal race where either 0 or 1 may be displayed. A nonblocking assignment computes its value now and schedules the update for later; the update is applied in source order. The design lesson is to avoid any-order evaluation interleaved with updates. The two-phase compute-then-commit step is the deterministic mechanism, consistent with TH3."
+    },
+    {
+     "id": "TH3",
+     "verdict": "confirmed",
+     "evidenceUrl": "https://rti.etf.bg.ac.rs/rti/ri5rvl/tutorial/TUTORIAL/IEEE/HTML/1076_12.HTM",
+     "note": "All three quotes appear verbatim on the mirror (grep-confirmed). The mirror's TOC page identifies it as 'IEEE Standard VHDL Language Reference Manual (IEEE Std. 1076-1993)'. Normative step list in 12.6.4: the current time is set, active explicit signals are updated, implicit signals are updated, then processes sensitive to events resume and non-postponed processes run until they suspend. 'No process actually begins to execute until all signals have been updated' comes from NOTE 3, an informative note. The delta-cycle definition comes from Annex B, the glossary, which is marked '(informative)'. Both statements support the claim, but the normative anchor is the step list. Unofficial HTML copy, as the claim says."
+    },
+    {
+     "id": "TH6",
+     "verdict": "partially-correct",
+     "evidenceUrl": "https://www.di.ens.fr/~pouzet/cours/mpri/cours-static-7/causality.pdf",
+     "note": "I extracted text from both PDFs. 'The simplest is that of Lustre (and its successor): statically reject instantaneous (unconditional) cycle' (slide 3) is verbatim. The Lustre V6 manual sentences are also present; the manual's sincos example says the compiler 'would complain that there is a deadlock' and that a loop must be cut with pre or fby. My extractor dropped the typographic quote glyphs around 'pre'. Problem: slides 14-15 present the delay-dropping dependence-graph check as 'A trivial solution': 'reject recursive definitions if the corresponding graph is cyclic'. The slides then say 'This solution is easy to implement. It accepts: ... But rejects: ...' and call it 'very sensitive to naming and the syntactic structure'. Neither source says this graph check is what Lustre's compiler implements. Only the policy is attributed to Lustre. The check is presented as a simple, conservative implementation that over-rejects some valid programs.",
+     "corrected": "Lustre statically rejects instantaneous (zero-delay) dependency cycles; a loop is accepted only if cut by a unit delay (pre/fby). One simple way to check this, given in a lecture note as 'a trivial solution', is to build the dependence graph, ignore dependencies that go through pre or fby, and reject if the graph is cyclic. That check is sound but conservative, so it rejects some valid programs. The sources do not state that this exact algorithm is Lustre's own."
+    },
+    {
+     "id": "TH7",
+     "verdict": "confirmed",
+     "evidenceUrl": "https://api.crossref.org/works/10.1137/0201010",
+     "note": "Crossref JSON returns Tarjan, 'Depth-First Search and Linear Graph Algorithms', SIAM J. Comput., June 1972, with the two quoted abstract sentences verbatim. It returns Kahn, 'Topological sorting of large networks', CACM, Nov 1962, with 'The present paper presents a very general method for obtaining topological order.' verbatim. Both Wikipedia sentences appear verbatim (grep-confirmed). Labelling: the two Crossref abstracts are publisher metadata for primary papers. The two Wikipedia statements are secondary, so the claim's 'verified-primary' overstates them. The self-loop caveat is correct: a one-vertex self-loop is a directed cycle but not an SCC with more than one vertex. Wikipedia's wording is strictly true only for graphs without self-loops, so the model must check self-loops separately."
+    }
+   ]
+  }
+ ]
+}

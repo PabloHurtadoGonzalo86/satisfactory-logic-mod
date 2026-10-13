@@ -1,0 +1,5 @@
+lpacer 1
+step 100000 max 4
+call 250000 0 | steps 2 dropped 0 paused 0 acc 50000
+call 30000 0 | steps 0 dropped 0 paused 0 acc 80000
+call 530000 0 | steps 4 dropped 2 paused 0 acc 10000

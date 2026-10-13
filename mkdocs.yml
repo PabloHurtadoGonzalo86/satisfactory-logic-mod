@@ -1,0 +1,93 @@
+site_name: Satisfactory Logic
+site_description: Lógica digital estilo Redstone para Satisfactory (proyecto no oficial)
+site_url: https://pablohurtadogonzalo86.github.io/satisfactory-logic-mod/
+repo_url: https://github.com/PabloHurtadoGonzalo86/satisfactory-logic-mod
+repo_name: satisfactory-logic-mod
+docs_dir: docs
+strict: true
+
+theme:
+  name: material
+  language: es
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep orange
+      accent: deep orange
+      toggle:
+        icon: material/weather-night
+        name: Modo oscuro
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep orange
+      accent: deep orange
+      toggle:
+        icon: material/weather-sunny
+        name: Modo claro
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.highlight
+    - toc.follow
+    - content.code.copy
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    anchors: warn
+    absolute_links: warn
+    unrecognized_links: warn
+
+exclude_docs: |
+  **/*.py
+  research/data/
+  review/*.json
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+nav:
+  - Inicio: index.md
+  - Estado del proyecto: estado.md
+  - Teoría:
+      - Guía de lectura: theory/README.md
+      - 1. Numeración binaria y hexadecimal: theory/01-numeracion-binaria-hex.md
+      - 2. Álgebra de Boole y puertas: theory/02-algebra-de-boole-y-puertas.md
+      - 3. Universalidad de NAND: theory/03-universalidad-nand.md
+      - 4. Memoria y biestables: theory/04-memoria-biestables.md
+      - 5. Aritmética binaria: theory/05-aritmetica-binaria.md
+      - 6. Relojes y contadores: theory/06-relojes-y-contadores.md
+      - 7. Máquinas de estado: theory/07-maquinas-de-estado.md
+  - Especificación del núcleo:
+      - 1. Semántica: spec/01-semantica.md
+      - 2. API y contrato con el adaptador: spec/02-api-nucleo.md
+      - 3. Plan de pruebas: spec/03-pruebas.md
+      - 4. Decisiones del diseño: spec/04-decisiones.md
+      - 5. Ambigüedades detectadas al implementar: spec/ambiguities.md
+  - Decisiones del proyecto: decisions/0001-decisiones-iniciales.md
+  - Investigación:
+      - Resumen y veredictos: research/README.md
+      - Versiones y herramientas: research/versions.md
+      - Trabajo previo y nombres: research/prior-art.md
+      - "Edificios: C++ o editor": research/buildables-cpp-vs-editor.md
+      - Cables y conexiones: research/wires-and-connections.md
+      - Sensores, actuadores y ejecución: research/runtime-api.md
+      - Redstone y teoría lógica: research/redstone-and-logic-theory.md
+      - Publicación y políticas: research/publishing-and-policy.md
+      - El crítico de huecos: research/critic.md
+  - Revisión de la teoría: review/theory-review-20261013.md

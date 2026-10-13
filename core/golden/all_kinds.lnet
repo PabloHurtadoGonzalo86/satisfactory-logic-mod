@@ -1,0 +1,30 @@
+lnet 1
+c 1 sensor
+c 2 sensor
+c 3 const v=5
+c 4 gate op=xor inv=0 k=3
+c 5 gate op=and inv=1 k=2 seed=15
+c 6 delay d=3
+c 7 cmp m=compare
+c 8 cmp m=subtract
+c 9 latch
+c 10 toggle seed=0
+c 11 clock p=7 h=3 seed=2
+c 12 actuator
+c 13 actuator
+w 1.o 4.0
+w 2.o 4.1
+w 3.o 4.2
+w 1.o 5.0
+w 2.o 5.1
+w 4.o 6.0
+w 1.o 7.0
+w 3.o 7.1
+w 1.o 8.0
+w 2.o 8.1
+w 7.o 9.0
+w 2.o 9.1
+w 2.o 10.0
+w 6.o 12.0
+w 8.o 13.0
+w 11.o 13.0

@@ -1,0 +1,4 @@
+lnet 1
+c 1 clock p=6 h=3
+c 2 actuator
+w 1.o 2.0

@@ -1,0 +1,5 @@
+/* Verbatim quotes in the research pages: wrap instead of scrolling sideways */
+.md-typeset pre > code {
+  white-space: pre-wrap;
+  word-break: break-word;
+}

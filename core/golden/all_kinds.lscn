@@ -1,0 +1,15 @@
+lscn 1
+ticks 12
+i 0 1=0 2=0
+i 1 1=9 2=3
+i 3 1=15
+i 4 2=0
+i 6 2=15
+i 8 1=5 2=1
+e 5 add c 14 actuator
+e 5 add w 9.o 14.0
+e 6 add c 15 const v=3
+e 7 del c 15
+e 7 rep c 5 gate op=or inv=0 k=2 seed=0
+e 9 del w 11.o 13.0
+e 10 del c 12

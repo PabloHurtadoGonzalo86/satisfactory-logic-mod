@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.DS_Store
+
+# Unreal / build outputs (the engine and SDK live outside this repo)
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+*.sln
+*.vcxproj*
+
+# Local secrets and scratch
+.env
+.env.*
+scratch/
+
+# Core build outputs (Makefile, scripts/run_mutants.sh)
+build/

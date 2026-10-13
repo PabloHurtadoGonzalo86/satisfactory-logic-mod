@@ -1,0 +1,28 @@
+name: Theory checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  theory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Research pages are generated from their data, not edited by hand
+        run: |
+          python3 tools/render_research.py --check
+          python3 tools/render_review.py --check
+          python3 scripts/check_public_hygiene.py
+      - name: Regenerate and verify every table and figure in the theory
+        working-directory: docs/theory
+        run: |
+          set -euo pipefail
+          python3 --version
+          for s in check_*.py; do
+            echo "== $s"
+            python3 "$s"
+          done

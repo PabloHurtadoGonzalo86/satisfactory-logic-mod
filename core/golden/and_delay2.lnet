@@ -1,0 +1,10 @@
+lnet 1
+c 1 sensor
+c 2 sensor
+c 3 gate op=and inv=0 k=2
+c 4 delay d=2
+c 5 actuator
+w 1.o 3.0
+w 2.o 3.1
+w 3.o 4.0
+w 4.o 5.0

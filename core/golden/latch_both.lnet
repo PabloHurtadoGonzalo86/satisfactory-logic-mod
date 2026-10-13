@@ -1,0 +1,12 @@
+lnet 1
+c 1 sensor
+c 2 sensor
+c 3 gate op=or inv=1 k=2 seed=0
+c 4 gate op=or inv=1 k=2 seed=15
+c 5 latch seed=0
+w 2.o 3.0
+w 4.o 3.1
+w 1.o 4.0
+w 3.o 4.1
+w 1.o 5.0
+w 2.o 5.1

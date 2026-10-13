@@ -1,0 +1,199 @@
+{
+ "filesReviewed": [
+  "01-numeracion-binaria-hex.md",
+  "02-algebra-de-boole-y-puertas.md",
+  "03-universalidad-nand.md",
+  "04-memoria-biestables.md",
+  "05-aritmetica-binaria.md",
+  "06-relojes-y-contadores.md",
+  "07-maquinas-de-estado.md",
+  "check_C.py",
+  "README.md",
+  "critic.md",
+  "redstone-and-logic-theory.md",
+  "prior-art.md",
+  "runtime-api.md",
+  "wires-and-connections.md",
+  "0001-decisiones-iniciales.md",
+  "README.md"
+ ],
+ "issues": [
+  {
+   "file": "docs/theory/03-universalidad-nand.md",
+   "where": "Paso 5, linea 83",
+   "severity": "error",
+   "problem": "Dice que XOR es la puerta mas cara de construir con 4 NAND. Es falso por las propias tablas del documento: XNOR cuesta 5 NAND (la frase siguiente lo dice) y con NOR la situacion se invierte (XOR 5, XNOR 4). XOR solo empata con NOR (4).",
+   "proposedFix": "Sustituir por: «XOR cuesta 4 NAND, tanto como NOR; la mas cara con NAND es XNOR (5 puertas, que es el mini-ejercicio). Con NOR es al reves: XNOR 4 y XOR 5.»",
+   "evidence": "03 linea 83 (XNOR 5 en la misma frase); Tabla 3.6 filas NAND/XNOR=5 y NOR/XOR=5 (lineas 227 y 233); Tabla 3.8 fila 0x9 (NAND 5) y fila 0x6 (NOR 5)."
+  },
+  {
+   "file": "docs/theory/07-maquinas-de-estado.md",
+   "where": "Paso 5, linea 130 («si alguna vez repites un estado repites todo lo que viene despues... toda trayectoria acaba en un ciclo»)",
+   "severity": "error",
+   "problem": "El argumento se presenta justo despues de definir S(t+1) = delta(S(t), x(t)) con entrada x. Con entradas que varian es falso: repetir un estado no repite el futuro, porque depende de las entradas futuras. Solo vale para maquinas autonomas (sin entradas, o con entradas fijas o periodicas: reloj, contador, anillo). Un lector podria concluir que cualquier FSM acaba en un ciclo.",
+   "proposedFix": "Reescribir: «La consecuencia es una idea muy potente para las maquinas autonomas (sin entradas, o con entradas constantes o periodicas, como un reloj o un contador). Como son deterministas y finitas, si alguna vez repiten un estado repiten todo lo que viene despues; con 2^n estados posibles, en como mucho 2^n pasos hay una repeticion: toda trayectoria acaba en un ciclo y el periodo de un reloj nunca supera 2^n. Con entradas que cambian a voluntad no vale: el detector 101 esta en S1 en t=1 y en t=5 y pasa a S2 la primera vez y a S1 la segunda, porque la entrada fue 0 y 1.»",
+   "evidence": "07 linea 130 vs traza Mealy lineas 221 (t=1: S1, x=0 -> S2) y 225 (t=5: S1, x=1 -> S1)."
+  },
+  {
+   "file": "docs/theory/03-universalidad-nand.md",
+   "where": "Paso 9 linea 153 y seccion «En Redstone / en Satisfactory» linea 316",
+   "severity": "misleading",
+   "problem": "Linea 316: «con un solo tipo, XOR cuesta 4 piezas» solo es cierto si el tipo unico es NAND; con NOR cuesta 5. NOR es justo la puerta nativa de Redstone (antorcha), asi que el precio relevante para el mod es 5. Linea 153 da OR 3, NOR 4, XOR 4 sin decir que es con NAND, y «hasta 4 capas» solo se alcanza con XNOR (5 NAND), no con las tres puertas citadas (OR 2 capas, NOR 3, XOR 3).",
+   "proposedFix": "Linea 316: «Lo que si queda establecido es el precio: con solo NAND, XOR cuesta 4 piezas y XNOR 5; con solo NOR (la puerta nativa de Redstone), XOR cuesta 5, XNOR 4, OR 2 y AND 3.» Linea 153: «Con solo NAND, OR cuesta 3 en vez de 1, NOR 4 y XOR 4 (XNOR 5, con 4 capas) (Tabla 3.6)».",
+   "evidence": "Tabla 3.6 (lineas 222-233); https://minecraft.wiki/w/Redstone_circuits/Logic: «NOR is a basic logic gate, implemented by a torch with two or more inputs»."
+  },
+  {
+   "file": "docs/theory/04-memoria-biestables.md",
+   "where": "Objetivo (linea 5) y Resumen (linea 623): «realimentacion mas retardo»",
+   "severity": "misleading",
+   "problem": "Feedback + delay no es ni necesario ni suficiente para memoria. El anillo de 3 NOT del documento 06 tiene realimentacion y retardo y no guarda nada: oscila con periodo 6. Lo que da dos estados estables es la realimentacion positiva (numero par de inversiones en el bucle), como muestra el anillo de 2 NOT de la Tabla 4.1 y el parrafo de n par del 06. El retardo solo hace que el modelo este bien definido (no hay bucles de retardo cero). Un programador puede quedarse con la idea de que cualquier bucle con retardo es una variable.",
+   "proposedFix": "Objetivo: «(realimentacion positiva: un bucle con un numero par de inversiones)». Resumen: «Memoria es realimentacion positiva: la salida vuelve a la entrada a traves de un numero par de inversiones, asi que el bucle tiene dos estados estables y se queda en el que le pusieron. Con un numero impar de inversiones el bucle oscila (documento 06). El retardo no crea la memoria: solo hace que el modelo este bien definido.»",
+   "evidence": "04 Tabla 4.1 (lineas 21-26: anillo de 2 NOT, 01 y 10 estables); 06 lineas 92-138 (anillo impar, periodo 2n) y linea 190 (n par, base de la memoria)."
+  },
+  {
+   "file": "docs/theory/07-maquinas-de-estado.md",
+   "where": "Ejemplo 1, lineas 313-324 y tabla de costes lineas 475-481",
+   "severity": "misleading",
+   "problem": "La comparacion binaria frente a one-hot usa dos criterios distintos. Las ecuaciones binarias salen de Quine-McCluskey con casillas «no importa»; las one-hot se cuentan tal como salen de leer las flechas, antes de la simplificacion N1 = x que el propio texto hace en la linea 322. El «5 frente a 14 literales» y «3 frente a 7 terminos» exagera la diferencia. La conclusion sobrevive (binaria sigue ganando), pero la brecha esta inflada.",
+   "proposedFix": "Contar one-hot ya simplificado: «la binaria gana en flip-flops (2 frente a 3) y en logica: 3 terminos y 5 literales frente a 5 terminos y 9 literales con one-hot una vez aplicada N1 = x (7 y 14 sin simplificar)». Ajustar la tabla de la linea 477 (o anadir una nota al pie) para que ambas columnas usen el mismo criterio.",
+   "evidence": "check_C.py linea 1554-1555: lit_bin sobre eq (qm_minimize con don't-cares) y lit_hot sobre eh (ecuaciones de flechas sin simplificar; la simplificacion N1 = x solo se asserta en la linea ~1527 y no se cuenta). Ecuaciones one-hot simplificadas: N0 4 literales, N1 1, N2 2, Y 2 = 9; terminos 2+1+1+1 = 5."
+  },
+  {
+   "file": "docs/theory/06-relojes-y-contadores.md",
+   "where": "Paso 1 linea 86 (aviso), Resumen linea 571, ejemplo resuelto lineas 458-491 y Paso 5.2 lineas 371-384, frente a 04 linea 499",
+   "severity": "misleading",
+   "problem": "El aviso de la linea 86 dice que las cifras dependen de un flip-flop ideal, pero no cuantifica la contradiccion: el flip-flop T construido con puertas del documento 04 falla con semiperiodo de reloj de 1 a 4 pasos y solo es fiable desde 5 (periodo >= 10), mientras que el 06 usa relojes de periodo 2 y 4 sin reparo, y su Resumen enuncia «P minimo = n» y «sincrono a periodo 2» sin la salvedad. Ademas el 06 supone que Q y Qn cambian a la vez, y el 04 muestra Qn retrasado un paso y un instante con Q = Qn = 1. Un lector que dimensione relojes para el mod con estas cifras se equivocaria.",
+   "proposedFix": "Anadir al final del Paso 1 y al Resumen: «Con el flip-flop T construido con puertas (documento 04) el semiperiodo minimo medido es de 5 pasos (periodo >= 10): los periodos 2 y 4 de este documento solo valen con el flip-flop ideal de 1 paso. Con el flip-flop del 04, el latido del ejemplo cada 16 pasos pasaria a ser cada 80 (periodo 10 x 8).» Y en el Resumen: «en las simulaciones, con flip-flop ideal, exige un periodo minimo igual a n».",
+   "evidence": "04 linea 499 («con semiperiodo ... 1, 2, 3, 4 pasos el T-FF falla ... con 5 a 10 pasos pasa»); 04 linea 524 (Q y Qn valen 1 a la vez); 06 linea 84 («dos salidas que cambian a la vez») y linea 571."
+  },
+  {
+   "file": "docs/theory/04-memoria-biestables.md",
+   "where": "Seccion «Tablas», lineas 528-580 (Tablas 4.9 a 4.13 y ecuaciones) frente a las ecuaciones de las lineas 86-88",
+   "severity": "misleading",
+   "problem": "Q(t+1) significa dos cosas distintas. En los modelos de puertas (Q(t+1) = NOR(R(t), Qn(t))) es un paso del simulador. En las tablas caracteristicas y la de excitacion es el valor al que se asienta el dispositivo: el latch SR tarda hasta 2 pasos (Tabla 4.2) y el flip-flop D/T cambia 2-3 pasos despues del flanco (linea 406). Con la misma notacion, Q(t+1) = S + not R . Q(t) parece decir que el latch responde en un paso.",
+   "proposedFix": "Anadir bajo la introduccion de Tablas: «En estas tablas Q(t+1) significa «el valor en que se asienta Q» (en el modelo de puertas el latch SR tarda hasta 2 pasos y el flip-flop D, 2 o 3 pasos tras el flanco), no un unico paso del simulador.»",
+   "evidence": "04 lineas 86-88 y 94-103 (pasos hasta quedar quieto = 2), 406 (2, 3, 2, 3 pasos), 528-580."
+  },
+  {
+   "file": "docs/theory/01-numeracion-binaria-hex.md",
+   "where": "Seccion «En Redstone / en Satisfactory», linea 261",
+   "severity": "misleading",
+   "problem": "«usan 1 bit de los 4 disponibles» sugiere que el circuito mira un bit concreto del nivel. La verdad es que distingue 0 de distinto de 0, o sea el OR de los cuatro bits: los niveles 1, 2 y 15 son todos «verdadero» aunque el bit 0 de 2 sea 0. Contrasta con la insistencia del paso 7 en que el nivel es un nibble.",
+   "proposedFix": "«Bits sueltos: muchos circuitos de Redstone solo distinguen «hay señal» (mayor que 0) de «no hay señal»: aprovechan 1 bit de informacion de los 4 que cabrian. Ojo: eso es x > 0 (el OR de los cuatro bits), no «mirar un bit concreto»: los niveles 1, 2 y 15 son todos «verdadero».»",
+   "evidence": "https://minecraft.wiki/w/Redstone_circuit: «The strength of the input signal in these circuits usually doesn't matter»; AND gate «outputs a redstone signal only if both inputs are greater than 0»; research redstone-and-logic-theory.md PR5 (truthiness t(x) = x > 0)."
+  },
+  {
+   "file": "docs/theory/05-aritmetica-binaria.md",
+   "where": "Paso 2, lineas 80-83 y ecuaciones de las lineas 149-155",
+   "severity": "misleading",
+   "problem": "Llama g y p a las señales A·B y x·Cin y dice que p es el acarreo que «dejan pasar». En la literatura de sumadores (acarreo anticipado) g = A·B es generate y p = A XOR B (o A+B) es propagate, o sea lo que aqui se llama x. Un lector que pase despues a un carry-lookahead entendera p al reves.",
+   "proposedFix": "Renombrar p a q (o gp) en todo el documento, y anadir: «g es la generacion (generate) y x = A XOR B es la propagacion (propagate); q = x·Cin es el acarreo que se propaga.» Cout = g + q.",
+   "evidence": "05 lineas 77-83 (x = A XOR B, g = A·B, p = x·Cin) y 149-155; convencion estandar generate/propagate de los sumadores de acarreo anticipado."
+  },
+  {
+   "file": "docs/theory/03-universalidad-nand.md",
+   "where": "Paso 8, linea 144 («Las constantes, que no tienen minterms utiles»)",
+   "severity": "misleading",
+   "problem": "Es impreciso: la constante 0 no tiene ningun minterm (su suma de productos esta vacia), pero la constante 1 si se escribe como suma de todos los minterms. «No tienen minterms utiles» oculta por que el 0 necesita un caso aparte.",
+   "proposedFix": "«La constante 0 no tiene ningun minterm (su suma de productos queda vacia), asi que se escribe aparte como A·¬A; la constante 1 es A+¬A. Con NAND cuestan 3 y 2 puertas, Tabla 3.8.»",
+   "evidence": "02 lineas 153-156 (SOP = OR de los minterms donde la funcion vale 1) y Tabla 3.8 (0b0000 y 0b1111)."
+  },
+  {
+   "file": "docs/theory/07-maquinas-de-estado.md",
+   "where": "Paso 3 linea 74, tabla de verdad lineas 282-293 y linea 301 (Quine-McCluskey)",
+   "severity": "gap",
+   "problem": "El documento 07 usa casillas «no importa» (-) y simplifica con Quine-McCluskey, pero el 02 solo enseña Karnaugh con todas las casillas definidas y nunca introduce las X. Es un prerequisito que falta justo donde el lector necesita simplificar. Para 3 variables basta un mapa, que el lector ya sabe leer.",
+   "proposedFix": "Anadir a 02, Paso 6: «Casillas «no importa»: si una combinacion no puede ocurrir (o da igual qué salida produzca), su casilla se marca X y se cuenta como 0 o como 1 segun convenga para hacer los grupos mas grandes.» En 07 linea 301 sustituir Quine-McCluskey por el mapa de D1 (filas Q1, columnas Q0 x en orden Gray): Q1=0: 0 0 0 1; Q1=1: 0 0 X X. El grupo vertical {Q1=0, Q1=1} con Q0=1, x=0 da D1 = Q0·¬x. Mencionar QM solo como «el metodo mecanico equivalente».",
+   "evidence": "02 lineas 160-218 (no hay X en ningun mapa); 07 lineas 74, 282-293, 301-307."
+  },
+  {
+   "file": "docs/theory/05-aritmetica-binaria.md",
+   "where": "Paso 4, lineas 161-173",
+   "severity": "gap",
+   "problem": "Afirma que «los bits de la suma son los mismos» con y sin signo y que NOT x + 1 hace de -x, pero nunca da la razon: con n bits todo se calcula modulo 2^n y un patron con signo vale p o p - 16. Se da la tabla y los ejemplos, pero un lector que viene de enteros de PHP/Python (sin ancho fijo) no ve por que funciona.",
+   "proposedFix": "Anadir: «Por que el mismo sumador sirve para los dos: con 4 bits todo se calcula modulo 16 (el acarreo final se descarta) y el bit de signo hace que un patron valga p (si b3 = 0) o p - 16 (si b3 = 1). Asi 0b1101 es 13 sin signo y 13 - 16 = -3 con signo, y sumarle 5 da 18, que modulo 16 es 2 en las dos lecturas. Por la misma razon x + NOT x + 1 = 16, que modulo 16 es 0.»",
+   "evidence": "05 lineas 163-173 y ejemplo 3 (lineas 314-343)."
+  },
+  {
+   "file": "docs/theory/04-memoria-biestables.md",
+   "where": "Paso 0 (linea 42-45) y Paso 6 (lineas 355-359)",
+   "severity": "gap",
+   "problem": "CLK, reloj y flanco de subida se usan por primera vez en el Paso 6 y el reloj no se define hasta el documento 06 (el flanco se define solo entre parentesis). Ademas «evaluacion sincrona» en el Paso 0 significa «todas las puertas se actualizan a la vez en cada paso», no «con reloj», y choca con el uso de «sincrono» en 06 y 07.",
+   "proposedFix": "Al abrir el Paso 6: «CLK es el reloj: una señal que alterna 0, 1, 0, 1 de forma periodica (el documento 06 explica como se fabrica). El flanco de subida es el instante en que pasa de 0 a 1.» En el Paso 0: ««sincrona» aqui significa que todas las puertas se actualizan a la vez; todavia no hay reloj.»",
+   "evidence": "04 lineas 42-45, 355-359; 06 lineas 83 y 1-17 (primera definicion de reloj y flanco)."
+  },
+  {
+   "file": "docs/theory/04-memoria-biestables.md",
+   "where": "Seccion «En Redstone / en Satisfactory», linea 618; tambien 06 linea 565",
+   "severity": "gap",
+   "problem": "Las notas de Redstone no dicen la edicion ni mencionan el quemado de antorchas, que es el contraste mas util con el modelo: una antorcha que se apaga mas de 8 veces en 60 game ticks se quema, y los relojes de antorcha necesitan retardo extra para evitarlo. El anillo de 1 NOT (periodo 2) del 06 es justo el caso que se quema. La investigacion previa documenta que Java y Bedrock difieren (quemado, retardo del piston, lampara) y recomienda no prometer paridad con Minecraft.",
+   "proposedFix": "Anadir a las notas: «En Minecraft una antorcha que se apaga mas de 8 veces en 60 game ticks se «quema»; un bucle de una sola antorcha es el caso tipico. Nuestro modelo no tiene esa proteccion. Java y Bedrock difieren en estos detalles, asi que las cifras de Minecraft son referencia, no especificacion.»",
+   "evidence": "https://minecraft.wiki/w/Redstone_Torch («forced to turn off more than eight times in 60 game ticks»); https://minecraft.wiki/w/Redstone_circuits/Clock («The repeaters must have a total delay of at least 4gt(2rt), or the torch burns out»); research redstone-and-logic-theory.md MC4 y recomendacion final; critic.md (Minecraft semantics differ between Java and Bedrock)."
+  },
+  {
+   "file": "docs/theory/06-relojes-y-contadores.md",
+   "where": "Paso 1, linea 52 (y 02 linea 64, 03 lineas 18-23)",
+   "severity": "gap",
+   "problem": "La misma sintaxis de netlist `y = OP(a, b)` es instantanea (combinacional, sin tiempo) en los documentos 02 y 03 y significa y(t+1) = OP(a(t), b(t)) en 04-06. Solo el 06 lo declara, y sin avisar de que cambia respecto a 02/03. En 05 se escribe explicitamente con (t) y (t+1) para el sumador NAND, lo que hace aun mas visible la diferencia.",
+   "proposedFix": "En 06 linea 52: «Ojo: a diferencia de las netlists de los documentos 02 y 03 (instantaneas), aqui cada linea `y = OP(a, b)` añade un paso: y(t+1) = OP(a(t), b(t)).» En 02 linea 64: «(sin tiempo: la salida se calcula a la vez que las entradas)».",
+   "evidence": "02 linea 64; 03 lineas 18-23 y 34-47; 05 lineas 115-125; 06 linea 52."
+  },
+  {
+   "file": "docs/theory/01-numeracion-binaria-hex.md",
+   "where": "Paso 7 (lineas 111-115) y lineas 260-262",
+   "severity": "gap",
+   "problem": "«No es un parecido: es la misma cuenta» es cierto en cantidad de informacion, pero un nivel de Redstone es una magnitud unica (decae 1 por bloque de polvo, los comparadores comparan y restan), no cuatro hilos. Redstone no trocea el nivel en bits: para sacar b3..b0 hace falta un decodificador. Un lector podria creer que se pueden cablear los bits sueltos de una señal.",
+   "proposedFix": "Anadir tras la linea 115: «Ojo: la equivalencia es de cantidad de informacion. En Minecraft el nivel es un unico valor que se transmite por un cable; para obtener sus 4 bits hacen falta circuitos que lo decodifiquen (Redstone circuits/Transmission distingue la codificacion analogica de la binaria de 4 lineas).»",
+   "evidence": "https://minecraft.wiki/w/Redstone_circuits/Transmission («An analog encoding ... can convey 16 states in a single wire»; «A 4-bit binary encoding contains the same amount of information as an analog line»); research EN1."
+  },
+  {
+   "file": "docs/theory/01-numeracion-binaria-hex.md",
+   "where": "01 linea 27 y 104; 06 lineas 207, 437, 446, 460, 537, 573; 07 linea 121; 06 lineas 33-39, 109, 164-171; 07 lineas 24-30, 125-128, 272-280",
+   "severity": "nit",
+   "problem": "Tres reglas de notacion de la serie se rompen. (a) 01 y 05 fijan × para multiplicar y avisan de que + es OR en las formulas logicas; 06 y 07 declaran + = OR y · = AND pero escriben aritmetica con ellos: «16 = 2 · 2^k», «(c(t) + 1) mod P», «W + N − 1», «(s + 1) mod 16», a tres lineas de «ANCHO(t+1) = x(t) + x(t−1) + ...» (OR). (b) 01 dice que en toda la serie los literales binarios llevan «ceros a la izquierda hasta completar nibbles», pero 06 y 07 escriben 0b1, 0b0, 0b101, 0b001, 0b00. (c) 2^n es potencia en todo el texto, mientras que 01 enseña que en PHP y Python `^` es XOR; un programador puede leer 2^4 como 6.",
+   "proposedFix": "(a) Escribir 2 × 2^k, 16 = 2 × 2^k y copiar en 06 y 07 el aviso de 05 linea 25 («en las ecuaciones logicas + es OR; en las sumas de numeros es la suma de siempre»); para W + N − 1 y mod, decir «suma aritmetica». (b) Relajar la regla de 01: «con tantos digitos como bits tenga la señal». (c) Anadir en 01 Paso 6: «En el texto 2^n es una potencia; en PHP y Python se escribe 2 ** n, porque ^ es XOR.»",
+   "evidence": "01 lineas 27 y 98-107; 05 linea 25; 06 lineas 31, 207, 437, 446, 460, 537, 573; 07 lineas 22 y 121."
+  },
+  {
+   "file": "docs/theory/06-relojes-y-contadores.md",
+   "where": "Letras reutilizadas entre documentos (04, 05, 06, 07)",
+   "severity": "nit",
+   "problem": "Varias letras cambian de significado: S = set (04), suma (05), estado S0..S3 (07); D = dato (04, 07: D1, D0) y retardo total D (06 lineas 192-203); E = enable (04) y bits one-hot E0..E2 (07), e = instante del flanco (04 Tabla 4.7, 06 tabla lineas 289-298); C = acarreo del semisumador (05 Paso 1) y bandera C = C4 (05 Paso 5); g1..g3 = puertas (06) y g = generate (05); en 06, Q1..Q3 son etapas del divisor (se numeran desde 1) y Q0..Q3 bits del contador (desde 0), con Q3 distinto en cada caso; en 07 Q1, Q0 son bits de estado. Todo esta definido localmente, pero la serie se lee como un curso continuo.",
+   "proposedFix": "Anadir una tabla de simbolos en el README o en el documento 02, y en 06 renombrar las etapas del divisor (por ejemplo Z1..Z3) para no chocar con Q0..Q3 del contador.",
+   "evidence": "04 lineas 38, 86-88, 417-428; 05 lineas 31-48 y 179-189; 06 lineas 232-253 y 263-268; 07 lineas 36-45, 268-280."
+  },
+  {
+   "file": "docs/theory/06-relojes-y-contadores.md",
+   "where": "06 lineas 49 y 225; 07 linea 63; 06 lineas 458-464; 03 linea 183",
+   "severity": "nit",
+   "problem": "Errores de español: «de la Paso 3» y «como los de la Paso 5» (Paso es masculino). «un caliente» en 07 es un calco del ingles (one-hot) que no es termino establecido. Ademas «Paso» (seccion) y «paso» (unidad de tiempo del modelo) son homonimos en los documentos 04-06, y los ejemplos resueltos de 06 («Paso 1: dividir», «Paso 2», «Paso 3») y 03 («como dice el paso 2») reutilizan esa numeracion y colisionan con los pasos de las secciones.",
+   "proposedFix": "«del Paso 3», «como los del Paso 5». En 07: «One-hot (un solo bit activo)». Llamar «Apartado» a las secciones o «instante» a la unidad de tiempo, y numerar los pasos del ejemplo como «(a), (b), (c)».",
+   "evidence": "06 lineas 49, 225, 460-464; 07 linea 63; 03 linea 183."
+  },
+  {
+   "file": "docs/theory/04-memoria-biestables.md",
+   "where": "Terminologia en 04 (titulo y Paso 1-8), 06 linea 190, 07 linea 415; «el script» en 02 linea 312, 03 lineas 138 y 148, 04 linea 438, 06 lineas 50, 52 y 88, 07 linea 301",
+   "severity": "nit",
+   "problem": "«latch», «flip-flop» y «biestable» se usan sin relacionarlos: el titulo del archivo 04 dice «biestables», 06 y 07 hablan de «un biestable» y «biestable SR» y el 04 nunca explica que «biestable» es el termino general en español. Por otro lado, «el script» se cita en cinco documentos como fuente de las cifras sin decir nunca cual es; para un lector sin el repo es una referencia vacia.",
+   "proposedFix": "En 04, Paso 1: «Biestable es el nombre general en español de estos circuitos con dos estados estables: el latch (sensible al nivel de E) y el flip-flop (sensible al flanco).» Y en 01 (o 02) una vez: «Las cifras de las tablas las genera y comprueba un script de Python del repositorio (docs/theory/check_*.py).» Despues, «el script» ya es una referencia valida.",
+   "evidence": "04 titulo y lineas 1-6; 06 linea 190; 07 linea 415; README.md seccion «Comprobar la teoria»."
+  },
+  {
+   "file": "docs/theory/04-memoria-biestables.md",
+   "where": "Resumen linea 625 (y Paso 5 linea 273), Paso 2 linea 186, Paso 7 linea 432",
+   "severity": "nit",
+   "problem": "(1) El Resumen dice que el latch D «elimina el estado prohibido por construccion» sin la salvedad «en regimen estable» de la linea 273, y las lineas 346-348 muestran que, cuando D sube con E=1, a y b valen 0 a la vez un paso y Q = Qn = 1 despues: el estado prohibido aparece transitoriamente. (2) Linea 186: «las dos puertas nunca son identicas, asi que no oscilan por simetria» es demasiado categorico; un latch real puede oscilar un instante o quedar metaestable antes de decidirse. (3) Linea 432: la frase «oscilan con periodo 2 hasta que se aplica, con D fija, 6 pasos con CLK=0 y 6 con CLK=1, que los corrige» es dificil de seguir.",
+   "proposedFix": "(1) «... elimina el estado prohibido en regimen estable (durante un cambio de D aparece un glitch de un paso).» (2) «...asi que la simetria se rompe tarde o temprano: el latch puede oscilar un instante o quedarse indeciso (metaestabilidad) y acaba en uno de los dos estados sin que puedas saber en cual.» (3) «...Q y Qn quedan iguales y oscilan con periodo 2 hasta que el flip-flop recibe, con D fija, 6 pasos con CLK=0 y 6 con CLK=1; eso lo deja otra vez consistente (comprobado desde cualquier estado).»",
+   "evidence": "04 lineas 273, 346-348, 625, 186, 430-432."
+  },
+  {
+   "file": "docs/theory/02-algebra-de-boole-y-puertas.md",
+   "where": "02 linea 17 y lineas 12 y 479; 03 linea 18; 05 linea 343; 01 lineas 15 y 119; 07 lineas 20, 352 y 541 y linea 356",
+   "severity": "nit",
+   "problem": "Varios descuidos menores. 02 linea 17: «En estos tres documentos todo es combinacional» es ambiguo (que tres; el sumador del 05 tambien lo es). 02 lineas 12 y 479: «es tan poco que se puede probar todo» y «cualquier igualdad ... mirando todas las filas» omiten que 2^n explota (con 32 variables son 4 mil millones de filas) y sirve para n pequeño. 03 linea 18 remite a la Tabla 2.2 para el codigo 0b0111, que esta en la Tabla 2.17. 05 linea 343: «pueden dar cualquier combinacion» tras mostrar 3 de las 4. 01 lineas 15 y 119: «tu dashboard» no tendra sentido en la web publica que decide 0001 (punto 5). 07 lineas 20 y 541 llaman «el mismo esquema de dos fases del 06» a algo distinto (alli es la regla de actualizacion del simulador en cada paso; aqui, registro + logica por ciclo) y la linea 352 dice «el mismo objeto visto a dos escalas» cuando solo se comprobo con periodo 12. 07 linea 356: un generador que arranca y sube el nivel del deposito choca con la intuicion de Satisfactory (un generador consume combustible).",
+   "proposedFix": "02 linea 17: «En este documento y en el 03 todo es combinacional.» 02 lineas 12/479: añadir «mientras n sea pequeño: 2^n crece muy deprisa, por eso se combina con algebra». 03 linea 18: «(Tablas 2.2 y 2.17 del documento 02)». 05 linea 343: «Con el (0, 0) de la Tabla 5.8 salen las cuatro combinaciones». 01: «el color de acento de un dashboard». 07 linea 20: «Es una version a escala de ciclo de las dos fases del 06.» 07 linea 352: «dan los mismos resultados cuando el periodo de reloj es suficiente (aqui 12 pasos).» 07 linea 356: «un actuador (por ejemplo, una bomba que llena un deposito)».",
+   "evidence": "02 lineas 12, 17, 479; 03 lineas 18 y Tabla 2.17 (02 linea 419); 05 lineas 343 y 370-377; research README/decisions 0001 punto 5 (GitHub Pages publico); 06 lineas 50-52; 07 lineas 20, 352, 356, 541."
+  }
+ ],
+ "overall": "Verdict per document. 01 (numeracion): sound; the only substantive item is the 'usan 1 bit de los 4' wording (line 261) plus two notation items. 02 (Boole, puertas, Karnaugh): conceptually sound and well sequenced; minor wording only, and it lacks don't-care cells that 07 needs. 03 (NAND/NOR): constructions, minima and completeness argument are correct; one false sentence ('XOR es la mas cara'), one misleading price statement ('con un solo tipo, XOR cuesta 4') and one imprecise note on constants. 04 (latches y flip-flops): the strongest document pedagogically and honest about its model; the headline 'realimentacion mas retardo' is misleading, 't+1' changes meaning in the characteristic tables, and CLK is used before it is defined. 05 (aritmetica): sound; fix the g/p naming and add the modular-arithmetic explanation of why one adder serves signed and unsigned. 06 (relojes y contadores): sound within its declared ideal-flip-flop model; the caveat should be made quantitative because 04 measures that the gate-level T flip-flop needs a half-period of at least 5 steps, and there are gender slips ('la Paso 3'). 07 (maquinas de estado): sound apart from the 'repeating a state repeats the future' claim, which is true only for autonomous machines, and an inflated one-hot versus binary cost comparison (conclusion survives, gap overstated). The Minecraft citations checked out: I fetched Redstone_circuit, Redstone_Torch, Redstone_circuits/Transmission, /Logic, /Memory, /Clock and Tutorial:Arithmetic_logic on minecraft.wiki and every quote and paraphrase in the docs matches, including the 'Ripple Carry adders' and 'two XOR gates, two AND gates, and one OR gate' quotes in 05; repeater delays (2/4/6/8 game ticks) and the 0..15 range match research MC3 and MC1. No document contradicts docs/research or docs/decisions (the README calls the nibble signal provisional, doc 01 calls the width open: compatible). No Satisfactory-side claim is made as fact; all are framed as open questions. Arithmetic, tables and traces were not re-verified, as instructed, though several traces were spot-checked by hand and agreed. I did not edit any file."
+}
