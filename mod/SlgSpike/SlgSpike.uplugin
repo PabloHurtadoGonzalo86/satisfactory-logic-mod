@@ -1,0 +1,33 @@
+{
+	"FileVersion": 3,
+	"Version": 0,
+	"VersionName": "0.1.0",
+	"SemVersion": "0.1.0",
+	"GameVersion": ">=502094",
+	"FriendlyName": "SlgSpike (Satisfactory Logic, spike 1)",
+	"Description": "Throwaway measurement plugin for the Satisfactory Logic project. It logs how the factory tick handler, mod subsystems, save data and remote call objects behave. It adds no gameplay and is never published.",
+	"Category": "Modding",
+	"CreatedBy": "Satisfactory Logic project (unofficial)",
+	"CreatedByURL": "https://github.com/PabloHurtadoGonzalo86/satisfactory-logic-mod",
+	"DocsURL": "https://pablohurtadogonzalo86.github.io/satisfactory-logic-mod/",
+	"MarketplaceURL": "",
+	"SupportURL": "https://github.com/PabloHurtadoGonzalo86/satisfactory-logic-mod/issues",
+	"CanContainContent": true,
+	"IsBetaVersion": true,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "SlgSpike",
+			"Type": "Runtime",
+			"LoadingPhase": "PostDefault"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "SML",
+			"Enabled": true,
+			"SemVersion": "^3.12.0"
+		}
+	]
+}
